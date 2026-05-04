@@ -599,7 +599,8 @@ async function loginAs(uid) {
 
   showScreen('main');
   showSection('dashboard', 0);
-  await loadData();
+  await Promise.all([loadData(), loadMonoTokens()]);
+  document.getElementById('mono-token').value = monoTokens[uid] || '';
   renderAll();
 }
 
@@ -865,36 +866,83 @@ function renderAll() {
 }
 
 // ─── MONO ────────────────────────────────────────────────
+let monoTokens = { me: null, wife: null }; // loaded from Supabase
+
+async function loadMonoTokens() {
+  const { data } = await db.from('mono_tokens').select('*');
+  if(data) data.forEach(r => { monoTokens[r.owner] = r.token; });
+}
+
+async function saveMonoToken(owner, token) {
+  await db.from('mono_tokens').upsert({ owner, token, updated_at: new Date().toISOString() }, { onConflict: 'owner' });
+}
+
 async function connectMono() {
   const token = document.getElementById('mono-token').value.trim();
   if(!token){ alert('Введіть токен'); return; }
   const el = document.getElementById('mono-result');
   el.innerHTML = '<div class="card"><div class="empty"><div class="spinner" style="margin:0 auto"></div></div></div>';
   try {
-    const r = await fetch('https://api.monobank.ua/personal/client-info',{headers:{'X-Token':token}});
-    if(!r.ok) throw new Error('Невірний токен');
+    const r = await fetch('https://api.monobank.ua/personal/client-info', { headers: { 'X-Token': token } });
+    if(!r.ok) throw new Error('Невірний токен або помилка API');
     const data = await r.json();
-    localStorage.setItem('mono_token_'+monoUserPick, token);
-    el.innerHTML = `<div class="card">
-      <div class="card-title">${USERS[monoUserPick].icon} Картки ${USERS[monoUserPick].name} — ${data.name}</div>
-      ${data.accounts.map(acc=>{
-        const bal = (acc.balance/100);
-        return `<div class="mono-account">
-          <div><div class="mono-acc-name">${acc.maskedPan?.[0]||acc.type}</div>
-          <div class="mono-acc-type">${acc.currencyCode===980?'UAH':acc.currencyCode} · кредитний ліміт: ${fmt(acc.creditLimit/100)}</div></div>
-          <div class="mono-acc-bal" style="color:${bal>=0?'#34c759':'#ff3b30'}">${fmt(bal)}</div>
-        </div>`;
-      }).join('')}
-    </div>`;
+    await saveMonoToken(monoUserPick, token);
+    monoTokens[monoUserPick] = token;
+    renderMonoAccounts(monoUserPick, data);
   } catch(e) {
     el.innerHTML = `<div class="card" style="color:#ff3b30;font-size:14px">${e.message}</div>`;
   }
 }
 
+function renderMonoAccounts(uid, data) {
+  const el = document.getElementById('mono-result');
+  el.innerHTML = `<div class="card">
+    <div class="card-title">${USERS[uid].icon} ${USERS[uid].name} — ${data.name||''}</div>
+    ${data.accounts.map(acc => {
+      const bal = acc.balance / 100;
+      const lim = acc.creditLimit / 100;
+      return `<div class="mono-account">
+        <div>
+          <div class="mono-acc-name">${acc.maskedPan?.[0] || acc.type}</div>
+          <div class="mono-acc-type">${acc.currencyCode===980?'UAH':acc.currencyCode}${lim>0?' · ліміт: '+fmt(lim):''}</div>
+        </div>
+        <div class="mono-acc-bal" style="color:${bal>=0?'#34c759':'#ff3b30'}">${fmt(bal)}</div>
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
+async function loadMonoForCurrentUser() {
+  const uid = currentUser;
+  // admin sees toggle, loads whichever is selected; wife loads only hers
+  const toLoad = currentUser === 'me' ? monoUserPick : 'wife';
+  const token = monoTokens[toLoad];
+  if(!token) return;
+  document.getElementById('mono-token').value = token;
+  const el = document.getElementById('mono-result');
+  el.innerHTML = '<div class="card"><div class="empty"><div class="spinner" style="margin:0 auto"></div></div></div>';
+  try {
+    const r = await fetch('https://api.monobank.ua/personal/client-info', { headers: { 'X-Token': token } });
+    if(!r.ok) return;
+    const data = await r.json();
+    renderMonoAccounts(toLoad, data);
+  } catch(e) { el.innerHTML=''; }
+}
+
+// override setMonoUser to also load accounts
+const _origSetMonoUser = setMonoUser;
+function setMonoUser(v, i) {
+  monoUserPick = v;
+  setSegActive('mono-user-seg', i);
+  document.getElementById('mono-token').value = monoTokens[v] || '';
+  document.getElementById('mono-result').innerHTML = '';
+  if(monoTokens[v]) loadMonoForCurrentUser();
+}
+
 // ─── INIT ────────────────────────────────────────────────
 (async function init() {
   initForm();
-  document.getElementById('loading-overlay').style.display='none';
+  document.getElementById('loading-overlay').style.display = 'none';
   showAuth();
 })();
 </script>
