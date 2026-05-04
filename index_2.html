@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>Фінанси</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f2f2f7;color:#1c1c1e;min-height:100vh}
+.app{max-width:430px;margin:0 auto;padding:12px;padding-bottom:80px}
+
+/* AUTH */
+.auth-wrap{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px;background:#f2f2f7}
+.auth-logo{font-size:48px;margin-bottom:4px}
+.auth-title{font-size:22px;font-weight:600;color:#1c1c1e}
+.auth-sub{font-size:14px;color:#6e6e73;margin-bottom:8px}
+.user-cards{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;width:100%;max-width:320px}
+.user-card{background:#fff;border:1px solid #e5e5ea;border-radius:16px;padding:20px;cursor:pointer;text-align:center;transition:transform .1s,box-shadow .1s;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.user-card:active{transform:scale(.97)}
+.user-card .u-icon{font-size:32px;margin-bottom:8px}
+.user-card .u-name{font-size:15px;font-weight:600}
+.user-card .u-role{font-size:12px;color:#6e6e73;margin-top:2px}
+.pin-row{display:flex;gap:12px;justify-content:center;margin:12px 0}
+.pin-dot{width:14px;height:14px;border-radius:50%;background:#e5e5ea;border:2px solid #c7c7cc;transition:all .15s}
+.pin-dot.filled{background:#007aff;border-color:#007aff}
+.pin-hint{font-size:13px;color:#6e6e73;height:18px;text-align:center}
+.pin-error{color:#ff3b30}
+.numpad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;width:100%;max-width:260px}
+.num-btn{padding:16px;background:#fff;border:1px solid #e5e5ea;border-radius:14px;font-size:20px;font-weight:500;cursor:pointer;color:#1c1c1e;transition:background .1s;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.num-btn:active{background:#e5e5ea}
+.back-link{font-size:14px;color:#007aff;background:none;border:none;cursor:pointer;margin-top:8px}
+
+/* TOP BAR */
+.top-bar{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;padding:10px 14px;background:#fff;border-radius:14px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.top-user{display:flex;align-items:center;gap:10px}
+.top-avatar{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:600}
+.top-name{font-size:14px;font-weight:600}
+.top-role{font-size:11px;color:#6e6e73}
+.top-sync{font-size:11px;color:#6e6e73;display:flex;align-items:center;gap:4px}
+.sync-dot{width:6px;height:6px;border-radius:50%;background:#34c759}
+.sync-dot.loading{background:#ff9500;animation:pulse 1s infinite}
+.sync-dot.error{background:#ff3b30}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.logout-btn{font-size:12px;color:#6e6e73;background:#f2f2f7;border:none;border-radius:8px;padding:5px 10px;cursor:pointer}
+
+/* BOTTOM NAV */
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:0.5px solid #e5e5ea;display:flex;padding:8px 0 env(safe-area-inset-bottom);max-width:430px;margin:0 auto;z-index:100}
+.bnav-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:4px;border:none;background:transparent;cursor:pointer;color:#6e6e73;font-size:10px;font-weight:500;transition:color .15s}
+.bnav-btn.active{color:#007aff}
+.bnav-ico{font-size:22px;line-height:1}
+
+/* SECTIONS */
+.section{display:none}
+.section.active{display:block}
+
+/* CARDS */
+.card{background:#fff;border-radius:16px;padding:16px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.card-title{font-size:12px;font-weight:600;color:#6e6e73;text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px}
+
+/* WALLETS */
+.wallets-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:14px}
+.wallet-card{background:#fff;border-radius:16px;padding:14px;box-shadow:0 1px 3px rgba(0,0,0,.06);cursor:pointer;transition:transform .1s}
+.wallet-card:active{transform:scale(.97)}
+.w-top{display:flex;align-items:center;gap:6px;margin-bottom:8px}
+.w-icon{font-size:18px}
+.w-name{font-size:12px;font-weight:600;color:#6e6e73}
+.w-bal{font-size:18px;font-weight:700}
+.w-bal.pos{color:#1c1c1e}
+.w-bal.neg{color:#ff3b30}
+.w-owner{font-size:10px;color:#aeaeb2;margin-top:2px}
+
+/* STATS */
+.stats-row{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:14px}
+.stat-card{background:#f2f2f7;border-radius:12px;padding:12px}
+.stat-label{font-size:11px;color:#6e6e73;margin-bottom:4px}
+.stat-val{font-size:20px;font-weight:700}
+.stat-val.pos{color:#34c759}
+.stat-val.neg{color:#ff3b30}
+
+/* TX LIST */
+.tx-item{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:0.5px solid #f2f2f7}
+.tx-item:last-child{border-bottom:none}
+.tx-ico{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.tx-ico.in{background:#e8f5e9}
+.tx-ico.out{background:#fce4ec}
+.tx-ico.move{background:#e3f2fd}
+.tx-info{flex:1;min-width:0}
+.tx-name{font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tx-meta{font-size:11px;color:#6e6e73;margin-top:1px}
+.tx-amt{font-size:14px;font-weight:700;flex-shrink:0;text-align:right}
+.tx-amt.in{color:#34c759}
+.tx-amt.out{color:#ff3b30}
+.tx-amt.move{color:#007aff}
+.tx-date-group{font-size:12px;font-weight:600;color:#6e6e73;padding:10px 0 6px;border-bottom:0.5px solid #f2f2f7;margin-bottom:2px}
+
+/* FORM */
+.form-section{background:#fff;border-radius:16px;padding:16px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.form-row{margin-bottom:12px}
+.form-label{font-size:13px;font-weight:500;color:#3c3c43;margin-bottom:6px;display:block}
+.form-input{width:100%;padding:11px 14px;border:1px solid #e5e5ea;border-radius:12px;font-size:15px;background:#f9f9f9;color:#1c1c1e;-webkit-appearance:none;appearance:none}
+.form-input:focus{outline:none;border-color:#007aff;background:#fff}
+select.form-input{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236e6e73' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:36px}
+.form-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+
+.type-toggle{display:flex;background:#f2f2f7;border-radius:12px;padding:3px;margin-bottom:14px}
+.type-btn{flex:1;padding:8px 4px;border:none;background:transparent;border-radius:10px;font-size:13px;font-weight:500;cursor:pointer;color:#6e6e73;transition:all .15s}
+.type-btn.active{background:#fff;color:#1c1c1e;box-shadow:0 1px 3px rgba(0,0,0,.12)}
+
+.owner-toggle{display:flex;background:#f2f2f7;border-radius:12px;padding:3px;margin-bottom:14px}
+.own-btn{flex:1;padding:8px;border:none;background:transparent;border-radius:10px;font-size:13px;font-weight:500;cursor:pointer;color:#6e6e73;transition:all .15s}
+.own-btn.active{background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.own-btn.me.active{color:#007aff}
+.own-btn.wife.active{color:#ff2d55}
+
+.submit-btn{width:100%;padding:14px;background:#007aff;color:#fff;border:none;border-radius:14px;font-size:16px;font-weight:600;cursor:pointer;transition:opacity .15s;margin-top:4px}
+.submit-btn:active{opacity:.8}
+.submit-btn.danger{background:#ff3b30}
+
+/* AMOUNT INPUT BIG */
+.amount-wrap{text-align:center;padding:16px 0 8px}
+.amount-currency{font-size:28px;font-weight:300;color:#6e6e73;vertical-align:top;margin-top:8px;display:inline-block}
+.amount-input{font-size:48px;font-weight:700;border:none;background:transparent;text-align:center;width:100%;color:#1c1c1e;outline:none}
+.amount-input::placeholder{color:#c7c7cc}
+
+/* SEGMENT */
+.segment{display:flex;background:#f2f2f7;border-radius:12px;padding:3px;margin-bottom:14px}
+.seg-btn{flex:1;padding:7px 4px;border:none;background:transparent;border-radius:10px;font-size:12px;font-weight:500;cursor:pointer;color:#6e6e73;transition:all .15s}
+.seg-btn.active{background:#fff;color:#1c1c1e;box-shadow:0 1px 3px rgba(0,0,0,.1)}
+
+/* MONTH NAV */
+.month-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.month-nav button{background:#fff;border:1px solid #e5e5ea;border-radius:10px;padding:6px 14px;cursor:pointer;font-size:15px;color:#007aff;box-shadow:0 1px 2px rgba(0,0,0,.06)}
+.month-lbl{font-size:16px;font-weight:600}
+
+/* DEBTORS */
+.debtor-item{padding:12px 0;border-bottom:0.5px solid #f2f2f7}
+.debtor-item:last-child{border-bottom:none}
+.debtor-row{display:flex;align-items:center;justify-content:space-between}
+.debtor-name{font-size:14px;font-weight:600}
+.debtor-note{font-size:12px;color:#6e6e73;margin-top:2px}
+.debtor-amt{font-size:16px;font-weight:700;color:#ff3b30}
+.paid-btn{font-size:12px;color:#34c759;background:none;border:1px solid #34c759;border-radius:8px;padding:4px 10px;cursor:pointer;margin-top:6px}
+.total-debt{background:#fce4ec;border-radius:12px;padding:12px 14px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center}
+.total-debt-label{font-size:13px;color:#c62828}
+.total-debt-val{font-size:18px;font-weight:700;color:#ff3b30}
+
+/* BAR */
+.bar-wrap{margin-bottom:10px}
+.bar-label-row{display:flex;justify-content:space-between;margin-bottom:4px;font-size:13px}
+.bar-track{height:8px;background:#f2f2f7;border-radius:99px;overflow:hidden}
+.bar-fill{height:100%;border-radius:99px;transition:width .5s}
+
+/* MONO */
+.mono-header{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.mono-logo{width:40px;height:40px;border-radius:12px;background:#1d1d1d;display:flex;align-items:center;justify-content:center;font-size:20px}
+.mono-account{display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-bottom:0.5px solid #f2f2f7}
+.mono-account:last-child{border-bottom:none}
+.mono-acc-name{font-size:14px;font-weight:500}
+.mono-acc-type{font-size:12px;color:#6e6e73}
+.mono-acc-bal{font-size:15px;font-weight:700}
+
+.empty{text-align:center;padding:28px 16px;color:#aeaeb2;font-size:14px}
+.empty-icon{font-size:32px;margin-bottom:8px}
+
+.badge{display:inline-block;font-size:9px;padding:2px 5px;border-radius:6px;font-weight:600;margin-left:4px;vertical-align:middle}
+.badge-me{background:#e3f2fd;color:#0c447c}
+.badge-wife{background:#fce4ec;color:#880e4f}
+
+.loading-overlay{position:fixed;inset:0;background:rgba(242,242,247,.8);display:flex;align-items:center;justify-content:center;z-index:999;font-size:14px;color:#6e6e73;flex-direction:column;gap:8px}
+.spinner{width:28px;height:28px;border:3px solid #e5e5ea;border-top-color:#007aff;border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.settings-row{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:0.5px solid #f2f2f7}
+.settings-row:last-child{border-bottom:none}
+.settings-label{font-size:14px;font-weight:500}
+.settings-val{font-size:14px;color:#6e6e73}
+.small-btn{font-size:13px;color:#007aff;background:none;border:none;cursor:pointer;font-weight:500}
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div id="loading-overlay" class="loading-overlay">
+  <div class="spinner"></div>
+  <span>Завантаження...</span>
+</div>
+
+<!-- AUTH -->
+<div id="screen-auth" style="display:none">
+  <div class="auth-wrap">
+    <div class="auth-logo">💰</div>
+    <div class="auth-title">Фінанси</div>
+    <div class="auth-sub">Оберіть акаунт</div>
+    <div class="user-cards">
+      <div class="user-card" onclick="selectUser('me')">
+        <div class="u-icon">👨</div>
+        <div class="u-name">Я</div>
+        <div class="u-role">Адміністратор</div>
+      </div>
+      <div class="user-card" onclick="selectUser('wife')">
+        <div class="u-icon">👩</div>
+        <div class="u-name">Дружина</div>
+        <div class="u-role">Мій акаунт</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PIN -->
+<div id="screen-pin" style="display:none">
+  <div class="auth-wrap">
+    <div class="auth-logo" id="pin-icon">👨</div>
+    <div class="auth-title" id="pin-title">Введіть PIN</div>
+    <div class="pin-row" id="pin-dots">
+      <div class="pin-dot" id="d0"></div>
+      <div class="pin-dot" id="d1"></div>
+      <div class="pin-dot" id="d2"></div>
+      <div class="pin-dot" id="d3"></div>
+    </div>
+    <div class="pin-hint" id="pin-hint"></div>
+    <div class="numpad">
+      <button class="num-btn" onclick="pinKey('1')">1</button>
+      <button class="num-btn" onclick="pinKey('2')">2</button>
+      <button class="num-btn" onclick="pinKey('3')">3</button>
+      <button class="num-btn" onclick="pinKey('4')">4</button>
+      <button class="num-btn" onclick="pinKey('5')">5</button>
+      <button class="num-btn" onclick="pinKey('6')">6</button>
+      <button class="num-btn" onclick="pinKey('7')">7</button>
+      <button class="num-btn" onclick="pinKey('8')">8</button>
+      <button class="num-btn" onclick="pinKey('9')">9</button>
+      <button class="num-btn" style="background:transparent;border:none;box-shadow:none"></button>
+      <button class="num-btn" onclick="pinKey('0')">0</button>
+      <button class="num-btn" onclick="pinKey('del')">⌫</button>
+    </div>
+    <button class="back-link" onclick="showAuth()">← Назад</button>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div id="screen-main" style="display:none">
+  <div class="app">
+    <!-- TOP BAR -->
+    <div class="top-bar">
+      <div class="top-user">
+        <div class="top-avatar" id="hdr-avatar"></div>
+        <div>
+          <div class="top-name" id="hdr-name"></div>
+          <div class="top-role" id="hdr-role"></div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <div class="top-sync"><div class="sync-dot" id="sync-dot"></div><span id="sync-txt">синхр.</span></div>
+        <button class="logout-btn" onclick="logout()">Вийти</button>
+      </div>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div id="sec-dashboard" class="section active">
+      <div id="dash-seg" class="segment" style="display:none">
+        <button class="seg-btn active" onclick="setDashView('all',0)">Спільний</button>
+        <button class="seg-btn" onclick="setDashView('me',1)">Мій</button>
+        <button class="seg-btn" onclick="setDashView('wife',2)">Дружина</button>
+      </div>
+      <div id="wallets-grid" class="wallets-grid"></div>
+      <div class="stats-row">
+        <div class="stat-card"><div class="stat-label">Дохід цього місяця</div><div class="stat-val pos" id="stat-in">₴0</div></div>
+        <div class="stat-card"><div class="stat-label">Витрати цього місяця</div><div class="stat-val neg" id="stat-out">₴0</div></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Баланс по гаманцях</div>
+        <div id="bar-chart"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Останні операції</div>
+        <div id="recent-list"><div class="empty"><div class="empty-icon">📭</div>Ще немає операцій</div></div>
+      </div>
+    </div>
+
+    <!-- ADD -->
+    <div id="sec-add" class="section">
+      <div class="form-section">
+        <div class="type-toggle">
+          <button class="type-btn active" onclick="setType('in')">↓ Дохід</button>
+          <button class="type-btn" onclick="setType('out')">↑ Витрата</button>
+          <button class="type-btn" onclick="setType('move')">⇄ Переказ</button>
+        </div>
+        <div id="owner-pick" class="owner-toggle" style="display:none">
+          <button class="own-btn me active" onclick="setOwner('me')">👨 Мій</button>
+          <button class="own-btn wife" onclick="setOwner('wife')">👩 Дружини</button>
+        </div>
+        <div class="amount-wrap">
+          <span class="amount-currency">₴</span>
+          <input class="amount-input" type="number" id="inp-amount" placeholder="0" inputmode="decimal">
+        </div>
+        <div class="form-row">
+          <label class="form-label" id="wallet-lbl">Гаманець</label>
+          <select class="form-input" id="inp-wallet"></select>
+        </div>
+        <div class="form-row" id="to-wallet-row" style="display:none">
+          <label class="form-label">Куди</label>
+          <select class="form-input" id="inp-wallet-to"></select>
+        </div>
+        <div class="form-row">
+          <label class="form-label">Категорія</label>
+          <select class="form-input" id="inp-category"></select>
+        </div>
+        <div class="form-grid">
+          <div class="form-row">
+            <label class="form-label">Дата</label>
+            <input class="form-input" type="date" id="inp-date">
+          </div>
+          <div class="form-row">
+            <label class="form-label">Коментар</label>
+            <input class="form-input" type="text" id="inp-note" placeholder="Необов'язково">
+          </div>
+        </div>
+        <button class="submit-btn" id="save-btn" onclick="addTransaction()">Зберегти</button>
+      </div>
+    </div>
+
+    <!-- HISTORY -->
+    <div id="sec-history" class="section">
+      <div class="month-nav">
+        <button onclick="changeMonth(-1)">‹</button>
+        <span class="month-lbl" id="month-label"></span>
+        <button onclick="changeMonth(1)">›</button>
+      </div>
+      <div id="hist-seg" class="segment" style="display:none">
+        <button class="seg-btn active" onclick="setHistView('all',0)">Всі</button>
+        <button class="seg-btn" onclick="setHistView('me',1)">Мої</button>
+        <button class="seg-btn" onclick="setHistView('wife',2)">Дружини</button>
+      </div>
+      <div class="card" style="margin-bottom:0">
+        <div id="history-list"><div class="empty"><div class="empty-icon">📅</div>Немає операцій</div></div>
+      </div>
+    </div>
+
+    <!-- DEBTORS -->
+    <div id="sec-debtors" class="section">
+      <div id="total-debt-wrap"></div>
+      <div class="card">
+        <div class="card-title">Активні борги</div>
+        <div id="debtor-list"><div class="empty"><div class="empty-icon">✅</div>Боргів немає</div></div>
+      </div>
+      <div class="form-section">
+        <div class="card-title" style="margin-bottom:14px">Додати борг</div>
+        <div class="form-row">
+          <label class="form-label">Ім'я / назва клієнта</label>
+          <input class="form-input" type="text" id="deb-name" placeholder="Прізвище або назва">
+        </div>
+        <div class="form-grid">
+          <div class="form-row">
+            <label class="form-label">Сума (₴)</label>
+            <input class="form-input" type="number" id="deb-amount" placeholder="0" inputmode="decimal">
+          </div>
+          <div class="form-row">
+            <label class="form-label">Дата</label>
+            <input class="form-input" type="date" id="deb-date">
+          </div>
+        </div>
+        <div class="form-row">
+          <label class="form-label">Коментар</label>
+          <input class="form-input" type="text" id="deb-note" placeholder="За що, деталі">
+        </div>
+        <button class="submit-btn" onclick="addDebtor()">Додати борг</button>
+      </div>
+    </div>
+
+    <!-- MONO -->
+    <div id="sec-mono" class="section">
+      <div class="card">
+        <div class="mono-header">
+          <div class="mono-logo">🐱</div>
+          <div>
+            <div style="font-size:16px;font-weight:600">Monobank</div>
+            <div style="font-size:12px;color:#6e6e73">Синхронізація карток</div>
+          </div>
+        </div>
+        <div id="mono-user-seg" class="segment" style="display:none;margin-bottom:14px">
+          <button class="seg-btn active" onclick="setMonoUser('me',0)">👨 Мій токен</button>
+          <button class="seg-btn" onclick="setMonoUser('wife',1)">👩 Токен дружини</button>
+        </div>
+        <div class="form-row">
+          <label class="form-label">Токен API (Налаштування → Інші → API)</label>
+          <input class="form-input" type="password" id="mono-token" placeholder="Вставте токен">
+        </div>
+        <button class="submit-btn" onclick="connectMono()">Підключити</button>
+      </div>
+      <div id="mono-result"></div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div id="sec-settings" class="section">
+      <div class="card">
+        <div class="card-title">PIN-коди</div>
+        <div class="settings-row">
+          <div><div class="settings-label">👨 Мій PIN</div><div class="settings-val" id="my-pin-display">••••</div></div>
+          <button class="small-btn" onclick="changePinFor('me')">Змінити</button>
+        </div>
+        <div class="settings-row">
+          <div><div class="settings-label">👩 PIN дружини</div><div class="settings-val" id="wife-pin-display">••••</div></div>
+          <button class="small-btn" onclick="changePinFor('wife')">Змінити</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Дані</div>
+        <div class="settings-row">
+          <div><div class="settings-label">Транзакцій</div><div class="settings-val" id="tx-count">0</div></div>
+        </div>
+        <div class="settings-row">
+          <div><div class="settings-label">Боргів активних</div><div class="settings-val" id="debt-count">0</div></div>
+        </div>
+        <div class="settings-row">
+          <div><div class="settings-label">Синхронізація</div><div class="settings-val">Supabase</div></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- BOTTOM NAV -->
+  <div class="bottom-nav">
+    <button class="bnav-btn active" onclick="showSection('dashboard',0)"><span class="bnav-ico">📊</span>Огляд</button>
+    <button class="bnav-btn" onclick="showSection('add',1)"><span class="bnav-ico">➕</span>Додати</button>
+    <button class="bnav-btn" onclick="showSection('history',2)"><span class="bnav-ico">📋</span>Історія</button>
+    <button class="bnav-btn" onclick="showSection('debtors',3)"><span class="bnav-ico">💳</span>Борги</button>
+    <button class="bnav-btn" onclick="showSection('mono',4)"><span class="bnav-ico">🐱</span>Моно</button>
+    <button class="bnav-btn" onclick="showSection('settings',5)"><span class="bnav-ico">⚙️</span>Налашт.</button>
+  </div>
+</div>
+
+<script>
+// ─── SUPABASE ───────────────────────────────────────────
+const SUPA_URL = 'https://svmwxextsfzwsgvjwbvp.supabase.co';
+const SUPA_KEY = 'sb_publishable_lepy_elx0wbOZzTtIPe8ew_Pw1H6FQ2';
+const { createClient } = supabase;
+const db = createClient(SUPA_URL, SUPA_KEY);
+
+// ─── CONFIG ─────────────────────────────────────────────
+const USERS = {
+  me:   { name:'Я', icon:'👨', role:'Адміністратор', bg:'#e3f2fd', color:'#0c447c' },
+  wife: { name:'Дружина', icon:'👩', role:'Мій акаунт', bg:'#fce4ec', color:'#880e4f' }
+};
+
+const ALL_WALLETS = [
+  { id:'biz',      name:'Бізнес',        icon:'🏭', owner:'me' },
+  { id:'oil',      name:'Масло',          icon:'🛢️', owner:'me' },
+  { id:'fuel',     name:'Паливо/Аморт',  icon:'⛽', owner:'me' },
+  { id:'salary',   name:'Зарплата',      icon:'💼', owner:'me' },
+  { id:'cash',     name:'Каса',           icon:'💵', owner:'me' },
+  { id:'personal', name:'Особисті',      icon:'🏠', owner:'me' },
+  { id:'wsalary',  name:'Зарплата',      icon:'💼', owner:'wife' },
+  { id:'wpersonal',name:'Особисті',      icon:'🏠', owner:'wife' },
+];
+
+const CATS = {
+  in:   ['Зарплата','Паливо від фірми','Амортизація','Продаж запчастин','Продаж масла','Оплата клієнта','Інше надходження'],
+  out:  ['Постачальник запчастин','Постачальник масла','Паливо','Продукти','Авто','Комуналка','Кафе','Одяг','Ліки','Інше'],
+  move: ['Переказ між гаманцями']
+};
+
+const MONTHS = ['Січень','Лютий','Березень','Квітень','Травень','Червень','Липень','Серпень','Вересень','Жовтень','Листопад','Грудень'];
+
+// ─── STATE ──────────────────────────────────────────────
+let currentUser = null;
+let pinBuffer = '';
+let pendingUser = null;
+let txType = 'in';
+let ownerPick = 'me';
+let dashView = 'all';
+let histView = 'all';
+let monoUserPick = 'me';
+let curMonth = new Date().getMonth();
+let curYear  = new Date().getFullYear();
+let transactions = [];
+let debtors = [];
+let pins = JSON.parse(localStorage.getItem('fin_pins') || '{"me":"1234","wife":"0000"}');
+
+// ─── SYNC STATUS ─────────────────────────────────────────
+function setSyncStatus(status) {
+  const dot = document.getElementById('sync-dot');
+  const txt = document.getElementById('sync-txt');
+  if(!dot) return;
+  dot.className = 'sync-dot' + (status==='ok'?'': status==='loading'?' loading':' error');
+  txt.textContent = status==='ok'?'синхр.': status==='loading'?'завант…':'помилка';
+}
+
+// ─── DATA ────────────────────────────────────────────────
+async function loadData() {
+  setSyncStatus('loading');
+  try {
+    const [txRes, debRes] = await Promise.all([
+      db.from('transactions').select('*').order('date', {ascending:false}),
+      db.from('debtors').select('*').order('created_at', {ascending:false})
+    ]);
+    if(txRes.error) throw txRes.error;
+    if(debRes.error) throw debRes.error;
+    transactions = txRes.data || [];
+    debtors = debRes.data || [];
+    setSyncStatus('ok');
+  } catch(e) {
+    setSyncStatus('error');
+    console.error(e);
+  }
+}
+
+async function saveTx(tx) {
+  setSyncStatus('loading');
+  const { error } = await db.from('transactions').insert([tx]);
+  if(error){ setSyncStatus('error'); console.error(error); return false; }
+  setSyncStatus('ok');
+  return true;
+}
+
+async function saveDebtor(d) {
+  setSyncStatus('loading');
+  const { error } = await db.from('debtors').insert([d]);
+  if(error){ setSyncStatus('error'); return false; }
+  setSyncStatus('ok');
+  return true;
+}
+
+async function updateDebtorPaid(id) {
+  setSyncStatus('loading');
+  const { error } = await db.from('debtors').update({paid:true}).eq('id',id);
+  if(error){ setSyncStatus('error'); return false; }
+  setSyncStatus('ok');
+  return true;
+}
+
+// ─── AUTH ────────────────────────────────────────────────
+function showScreen(name) {
+  ['auth','pin','main'].forEach(s => {
+    document.getElementById('screen-'+s).style.display = s===name ? 'block' : 'none';
+  });
+}
+function showAuth() { showScreen('auth'); }
+
+function selectUser(uid) {
+  pendingUser = uid;
+  pinBuffer = '';
+  document.getElementById('pin-icon').textContent = USERS[uid].icon;
+  document.getElementById('pin-title').textContent = USERS[uid].name;
+  document.getElementById('pin-hint').textContent = '';
+  updateDots();
+  showScreen('pin');
+}
+
+function pinKey(k) {
+  if(k==='del'){ pinBuffer=pinBuffer.slice(0,-1); updateDots(); return; }
+  if(pinBuffer.length>=4) return;
+  pinBuffer += k;
+  updateDots();
+  if(pinBuffer.length===4) {
+    setTimeout(async () => {
+      if(pinBuffer === pins[pendingUser]) {
+        await loginAs(pendingUser);
+      } else {
+        const h = document.getElementById('pin-hint');
+        h.textContent = 'Невірний PIN';
+        h.className = 'pin-hint pin-error';
+        pinBuffer = ''; updateDots();
+        setTimeout(()=>{ h.textContent=''; h.className='pin-hint'; },1500);
+      }
+    }, 120);
+  }
+}
+
+function updateDots() {
+  for(let i=0;i<4;i++) {
+    document.getElementById('d'+i).className = 'pin-dot' + (i<pinBuffer.length?' filled':'');
+  }
+}
+
+async function loginAs(uid) {
+  currentUser = uid;
+  const u = USERS[uid];
+  document.getElementById('hdr-avatar').textContent = u.icon;
+  document.getElementById('hdr-avatar').style.background = u.bg;
+  document.getElementById('hdr-avatar').style.color = u.color;
+  document.getElementById('hdr-name').textContent = u.name;
+  document.getElementById('hdr-role').textContent = u.role;
+
+  const isAdmin = uid==='me';
+  ['dash-seg','hist-seg','mono-user-seg'].forEach(id => {
+    document.getElementById(id).style.display = isAdmin ? 'flex' : 'none';
+  });
+  document.getElementById('owner-pick').style.display = isAdmin ? 'flex' : 'none';
+
+  dashView = 'all'; histView = 'all';
+  ownerPick = uid; monoUserPick = uid;
+  setOwner(uid);
+
+  document.getElementById('inp-date').value = today();
+  document.getElementById('deb-date').value = today();
+
+  showScreen('main');
+  showSection('dashboard', 0);
+  await loadData();
+  renderAll();
+}
+
+function logout() { currentUser=null; showAuth(); }
+
+function today() { return new Date().toISOString().slice(0,10); }
+
+// ─── NAV ─────────────────────────────────────────────────
+function showSection(name, idx) {
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.bnav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('sec-'+name).classList.add('active');
+  document.querySelectorAll('.bnav-btn')[idx].classList.add('active');
+  if(name==='history') renderHistory();
+  if(name==='debtors') renderDebtors();
+  if(name==='settings') renderSettings();
+}
+
+function setSegActive(container, idx) {
+  document.querySelectorAll('#'+container+' .seg-btn').forEach((b,i)=>b.classList.toggle('active',i===idx));
+}
+
+function setDashView(v,i){ dashView=v; setSegActive('dash-seg',i); renderDashboard(); }
+function setHistView(v,i){ histView=v; setSegActive('hist-seg',i); renderHistory(); }
+function setMonoUser(v,i){ monoUserPick=v; setSegActive('mono-user-seg',i); }
+
+// ─── FORM ─────────────────────────────────────────────────
+function setType(t) {
+  txType = t;
+  document.querySelectorAll('.type-btn').forEach((b,i)=>b.classList.toggle('active',['in','out','move'][i]===t));
+  document.getElementById('wallet-lbl').textContent = t==='move'?'Звідки':'Гаманець';
+  document.getElementById('to-wallet-row').style.display = t==='move'?'block':'none';
+  populateCats();
+}
+function setOwner(v) {
+  ownerPick = v;
+  document.querySelectorAll('.own-btn').forEach((b,i)=>b.classList.toggle('active',['me','wife'][i]===v));
+  populateWalletSelects();
+}
+function populateWalletSelects() {
+  const uid = currentUser==='me' ? ownerPick : currentUser;
+  const ws = ALL_WALLETS.filter(w=>w.owner===uid);
+  const allW = ALL_WALLETS;
+  document.getElementById('inp-wallet').innerHTML = ws.map(w=>`<option value="${w.id}">${w.icon} ${w.name}</option>`).join('');
+  document.getElementById('inp-wallet-to').innerHTML = allW.map(w=>`<option value="${w.id}">${w.icon} ${w.name} (${USERS[w.owner].name})</option>`).join('');
+}
+function populateCats() {
+  document.getElementById('inp-category').innerHTML = (CATS[txType]||[]).map(c=>`<option>${c}</option>`).join('');
+}
+function initForm() { populateWalletSelects(); populateCats(); setType('in'); }
+
+async function addTransaction() {
+  const amount = parseFloat(document.getElementById('inp-amount').value);
+  if(!amount||amount<=0){ alert('Введіть суму'); return; }
+  const uid = currentUser==='me' ? ownerPick : currentUser;
+  const btn = document.getElementById('save-btn');
+  btn.disabled=true; btn.textContent='Збереження...';
+
+  const tx = {
+    type: txType,
+    amount,
+    wallet: txType!=='move' ? document.getElementById('inp-wallet').value : null,
+    from:   txType==='move' ? document.getElementById('inp-wallet').value : null,
+    to:     txType==='move' ? document.getElementById('inp-wallet-to').value : null,
+    category: document.getElementById('inp-category').value,
+    note: document.getElementById('inp-note').value,
+    date: document.getElementById('inp-date').value || today(),
+    owner: uid
+  };
+
+  const ok = await saveTx(tx);
+  btn.disabled=false; btn.textContent='Зберегти';
+  if(!ok){ alert('Помилка збереження. Перевірте інтернет.'); return; }
+  await loadData();
+  document.getElementById('inp-amount').value='';
+  document.getElementById('inp-note').value='';
+  renderAll();
+  showSection('dashboard',0);
+}
+
+async function addDebtor() {
+  const name = document.getElementById('deb-name').value.trim();
+  const amount = parseFloat(document.getElementById('deb-amount').value);
+  if(!name||!amount){ alert('Введіть ім\'я та суму'); return; }
+  const d = {
+    name, amount,
+    note: document.getElementById('deb-note').value,
+    date: document.getElementById('deb-date').value || today(),
+    paid: false,
+    owner: currentUser
+  };
+  const ok = await saveDebtor(d);
+  if(!ok){ alert('Помилка збереження'); return; }
+  await loadData();
+  document.getElementById('deb-name').value='';
+  document.getElementById('deb-amount').value='';
+  document.getElementById('deb-note').value='';
+  renderDebtors();
+}
+
+async function markPaid(id) {
+  if(!confirm('Позначити як погашено?')) return;
+  await updateDebtorPaid(id);
+  await loadData();
+  renderDebtors();
+}
+
+// ─── HELPERS ─────────────────────────────────────────────
+function fmt(n){ return '₴'+Math.round(n).toLocaleString('uk-UA'); }
+function fmtDate(s){ if(!s) return ''; const d=new Date(s); return d.toLocaleDateString('uk-UA',{day:'2-digit',month:'2-digit',year:'2-digit'}); }
+function getBalance(wid){
+  return transactions.reduce((s,tx)=>{
+    if(tx.type==='in'&&tx.wallet===wid) return s+Number(tx.amount);
+    if(tx.type==='out'&&tx.wallet===wid) return s-Number(tx.amount);
+    if(tx.type==='move'&&tx.from===wid) return s-Number(tx.amount);
+    if(tx.type==='move'&&tx.to===wid) return s+Number(tx.amount);
+    return s;
+  },0);
+}
+
+function txOwnerFilter(tx) {
+  if(currentUser==='wife') return tx.owner==='wife';
+  if(dashView==='all') return true;
+  return tx.owner===dashView;
+}
+
+function histOwnerFilter(tx) {
+  if(currentUser==='wife') return tx.owner==='wife';
+  if(histView==='all') return true;
+  return tx.owner===histView;
+}
+
+function txHTML(tx) {
+  const wid = tx.wallet||tx.from;
+  const w = ALL_WALLETS.find(x=>x.id===wid);
+  const wTo = ALL_WALLETS.find(x=>x.id===tx.to);
+  const cls = tx.type==='in'?'in':tx.type==='out'?'out':'move';
+  const sign = tx.type==='in'?'+':tx.type==='out'?'-':'';
+  const ownerBadge = currentUser==='me' ? `<span class="badge ${tx.owner==='wife'?'badge-wife':'badge-me'}">${USERS[tx.owner]?.icon||''}</span>` : '';
+  const walletInfo = w?w.name:'';
+  const toInfo = tx.type==='move'&&wTo?' → '+wTo.name:'';
+  return `<div class="tx-item">
+    <div class="tx-ico ${cls}">${w?w.icon:'💰'}</div>
+    <div class="tx-info">
+      <div class="tx-name">${tx.note||tx.category||'Операція'}${ownerBadge}</div>
+      <div class="tx-meta">${fmtDate(tx.date)} · ${walletInfo}${toInfo}${tx.category&&tx.note?' · '+tx.category:''}</div>
+    </div>
+    <div class="tx-amt ${cls}">${sign}${fmt(Number(tx.amount))}</div>
+  </div>`;
+}
+
+// ─── RENDER ──────────────────────────────────────────────
+function renderDashboard() {
+  const ws = currentUser==='me' && dashView==='all' ? ALL_WALLETS :
+             currentUser==='me' ? ALL_WALLETS.filter(w=>w.owner===dashView) :
+             ALL_WALLETS.filter(w=>w.owner===currentUser);
+
+  document.getElementById('wallets-grid').innerHTML = ws.map(w=>{
+    const bal = getBalance(w.id);
+    const ownerBadge = currentUser==='me' && dashView==='all' ? `<div class="w-owner">${USERS[w.owner].icon} ${USERS[w.owner].name}</div>` : '';
+    return `<div class="wallet-card">
+      <div class="w-top"><span class="w-icon">${w.icon}</span><span class="w-name">${w.name}</span></div>
+      <div class="w-bal ${bal>=0?'pos':'neg'}">${fmt(bal)}</div>
+      ${ownerBadge}
+    </div>`;
+  }).join('');
+
+  const now = new Date();
+  const monthTxs = transactions.filter(tx=>{
+    const d=new Date(tx.date);
+    return d.getMonth()===now.getMonth() && d.getFullYear()===now.getFullYear() && txOwnerFilter(tx);
+  });
+  const inSum = monthTxs.filter(t=>t.type==='in').reduce((s,t)=>s+Number(t.amount),0);
+  const outSum = monthTxs.filter(t=>t.type==='out').reduce((s,t)=>s+Number(t.amount),0);
+  document.getElementById('stat-in').textContent = fmt(inSum);
+  document.getElementById('stat-out').textContent = fmt(outSum);
+
+  const maxAbs = Math.max(...ws.map(w=>Math.abs(getBalance(w.id))),1);
+  document.getElementById('bar-chart').innerHTML = ws.map(w=>{
+    const v = getBalance(w.id);
+    const pct = Math.round(Math.abs(v)/maxAbs*100);
+    const color = v>=0?'#34c759':'#ff3b30';
+    return `<div class="bar-wrap">
+      <div class="bar-label-row"><span>${w.icon} ${w.name}</span><span style="font-weight:600;color:${color}">${fmt(v)}</span></div>
+      <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${color}"></div></div>
+    </div>`;
+  }).join('');
+
+  const recent = transactions.filter(txOwnerFilter).slice(0,6);
+  document.getElementById('recent-list').innerHTML = recent.length ?
+    recent.map(txHTML).join('') : '<div class="empty"><div class="empty-icon">📭</div>Ще немає операцій</div>';
+}
+
+function renderHistory() {
+  document.getElementById('month-label').textContent = MONTHS[curMonth]+' '+curYear;
+  const filtered = transactions.filter(tx=>{
+    const d = new Date(tx.date);
+    return d.getMonth()===curMonth && d.getFullYear()===curYear && histOwnerFilter(tx);
+  });
+
+  if(!filtered.length){
+    document.getElementById('history-list').innerHTML='<div class="empty"><div class="empty-icon">📅</div>Немає операцій за цей місяць</div>';
+    return;
+  }
+
+  // Group by date
+  const groups = {};
+  filtered.forEach(tx=>{ (groups[tx.date]=groups[tx.date]||[]).push(tx); });
+  const sortedDates = Object.keys(groups).sort((a,b)=>b.localeCompare(a));
+  document.getElementById('history-list').innerHTML = sortedDates.map(date=>{
+    const dayTotal = groups[date].reduce((s,tx)=>tx.type==='in'?s+Number(tx.amount):tx.type==='out'?s-Number(tx.amount):s,0);
+    const sign = dayTotal>=0?'+':'-';
+    const color = dayTotal>=0?'#34c759':'#ff3b30';
+    return `<div class="tx-date-group" style="display:flex;justify-content:space-between">
+      <span>${fmtDate(date)}</span>
+      <span style="color:${color};font-weight:600">${sign}${fmt(Math.abs(dayTotal))}</span>
+    </div>`+groups[date].map(txHTML).join('');
+  }).join('');
+}
+
+function changeMonth(dir){
+  curMonth+=dir;
+  if(curMonth<0){curMonth=11;curYear--;}
+  if(curMonth>11){curMonth=0;curYear++;}
+  renderHistory();
+}
+
+function renderDebtors() {
+  const active = debtors.filter(d=>!d.paid);
+  const total = active.reduce((s,d)=>s+Number(d.amount),0);
+  const tw = document.getElementById('total-debt-wrap');
+  tw.innerHTML = active.length ? `<div class="total-debt"><span class="total-debt-label">Загальна дебіторка</span><span class="total-debt-val">${fmt(total)}</span></div>` : '';
+
+  document.getElementById('debtor-list').innerHTML = active.length ?
+    active.map(d=>`<div class="debtor-item">
+      <div class="debtor-row">
+        <div><div class="debtor-name">${d.name}</div><div class="debtor-note">${fmtDate(d.date)}${d.note?' · '+d.note:''}</div></div>
+        <div class="debtor-amt">${fmt(Number(d.amount))}</div>
+      </div>
+      <button class="paid-btn" onclick="markPaid(${d.id})">✓ Погашено</button>
+    </div>`).join('') :
+    '<div class="empty"><div class="empty-icon">✅</div>Всі борги погашено</div>';
+}
+
+function renderSettings() {
+  document.getElementById('tx-count').textContent = transactions.length;
+  document.getElementById('debt-count').textContent = debtors.filter(d=>!d.paid).length;
+}
+
+function changePinFor(uid) {
+  const newPin = prompt(`Новий PIN для ${USERS[uid].name} (4 цифри):`);
+  if(!newPin || !/^\d{4}$/.test(newPin)){ alert('PIN має бути 4 цифри'); return; }
+  pins[uid] = newPin;
+  localStorage.setItem('fin_pins', JSON.stringify(pins));
+  alert('PIN змінено!');
+}
+
+function renderAll() {
+  renderDashboard();
+  renderHistory();
+  renderDebtors();
+  renderSettings();
+}
+
+// ─── MONO ────────────────────────────────────────────────
+async function connectMono() {
+  const token = document.getElementById('mono-token').value.trim();
+  if(!token){ alert('Введіть токен'); return; }
+  const el = document.getElementById('mono-result');
+  el.innerHTML = '<div class="card"><div class="empty"><div class="spinner" style="margin:0 auto"></div></div></div>';
+  try {
+    const r = await fetch('https://api.monobank.ua/personal/client-info',{headers:{'X-Token':token}});
+    if(!r.ok) throw new Error('Невірний токен');
+    const data = await r.json();
+    localStorage.setItem('mono_token_'+monoUserPick, token);
+    el.innerHTML = `<div class="card">
+      <div class="card-title">${USERS[monoUserPick].icon} Картки ${USERS[monoUserPick].name} — ${data.name}</div>
+      ${data.accounts.map(acc=>{
+        const bal = (acc.balance/100);
+        return `<div class="mono-account">
+          <div><div class="mono-acc-name">${acc.maskedPan?.[0]||acc.type}</div>
+          <div class="mono-acc-type">${acc.currencyCode===980?'UAH':acc.currencyCode} · кредитний ліміт: ${fmt(acc.creditLimit/100)}</div></div>
+          <div class="mono-acc-bal" style="color:${bal>=0?'#34c759':'#ff3b30'}">${fmt(bal)}</div>
+        </div>`;
+      }).join('')}
+    </div>`;
+  } catch(e) {
+    el.innerHTML = `<div class="card" style="color:#ff3b30;font-size:14px">${e.message}</div>`;
+  }
+}
+
+// ─── INIT ────────────────────────────────────────────────
+(async function init() {
+  initForm();
+  document.getElementById('loading-overlay').style.display='none';
+  showAuth();
+})();
+</script>
+</body>
+</html>
