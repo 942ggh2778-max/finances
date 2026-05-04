@@ -371,25 +371,43 @@ select.form-input{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://
 
     <!-- MONO -->
     <div id="sec-mono" class="section">
-      <div class="card">
-        <div class="mono-header">
-          <div class="mono-logo">🐱</div>
-          <div>
-            <div style="font-size:16px;font-weight:600">Monobank</div>
-            <div style="font-size:12px;color:#6e6e73">Синхронізація карток</div>
-          </div>
-        </div>
-        <div id="mono-user-seg" class="segment" style="display:none;margin-bottom:14px">
-          <button class="seg-btn active" onclick="setMonoUser('me',0)">👨 Мій токен</button>
-          <button class="seg-btn" onclick="setMonoUser('wife',1)">👩 Токен дружини</button>
-        </div>
-        <div class="form-row">
-          <label class="form-label">Токен API (Налаштування → Інші → API)</label>
-          <input class="form-input" type="password" id="mono-token" placeholder="Вставте токен">
-        </div>
-        <button class="submit-btn" onclick="connectMono()">Підключити</button>
+      <div class="segment" style="margin-bottom:14px">
+        <button class="seg-btn active" onclick="setMonoTab('cards',0)">💳 Картки</button>
+        <button class="seg-btn" onclick="setMonoTab('import',1)">📥 Імпорт</button>
       </div>
-      <div id="mono-result"></div>
+
+      <div id="mono-tab-cards">
+        <div class="card">
+          <div class="mono-header">
+            <div class="mono-logo">🐱</div>
+            <div>
+              <div style="font-size:16px;font-weight:600">Monobank</div>
+              <div style="font-size:12px;color:#6e6e73">Баланс карток</div>
+            </div>
+          </div>
+          <div id="mono-user-seg" class="segment" style="display:none;margin-bottom:14px">
+            <button class="seg-btn active" onclick="setMonoUser('me',0)">👨 Мій токен</button>
+            <button class="seg-btn" onclick="setMonoUser('wife',1)">👩 Токен дружини</button>
+          </div>
+          <div class="form-row">
+            <label class="form-label">Токен API (Налаштування → Інші → API)</label>
+            <input class="form-input" type="password" id="mono-token" placeholder="Вставте токен">
+          </div>
+          <button class="submit-btn" onclick="connectMono()">Показати баланс</button>
+        </div>
+        <div id="mono-result"></div>
+      </div>
+
+      <div id="mono-tab-import" style="display:none">
+        <div class="card" style="margin-bottom:12px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+            <div class="card-title" style="margin-bottom:0">Нові транзакції з Моно</div>
+            <button class="small-btn" onclick="loadMonoImport()">↻ Оновити</button>
+          </div>
+          <div style="font-size:12px;color:#6e6e73">Призначте гаманець і натисніть Імпортувати</div>
+        </div>
+        <div id="mono-import-list"><div class="empty"><div class="empty-icon">📥</div>Немає нових транзакцій</div></div>
+      </div>
     </div>
 
     <!-- SETTINGS -->
@@ -937,6 +955,119 @@ function setMonoUser(v, i) {
   document.getElementById('mono-token').value = monoTokens[v] || '';
   document.getElementById('mono-result').innerHTML = '';
   if(monoTokens[v]) loadMonoForCurrentUser();
+}
+
+// ─── MONO TABS ───────────────────────────────────────────
+function setMonoTab(tab, idx) {
+  document.getElementById('mono-tab-cards').style.display = tab==='cards' ? 'block' : 'none';
+  document.getElementById('mono-tab-import').style.display = tab==='import' ? 'block' : 'none';
+  document.querySelectorAll('#sec-mono .segment:first-child .seg-btn').forEach((b,i)=>b.classList.toggle('active',i===idx));
+  if(tab==='import') loadMonoImport();
+}
+
+// ─── MONO IMPORT ─────────────────────────────────────────
+let monoImportData = [];
+
+async function loadMonoImport() {
+  const el = document.getElementById('mono-import-list');
+  el.innerHTML = '<div class="empty"><div class="spinner" style="margin:0 auto 8px"></div>Завантаження...</div>';
+  const { data, error } = await db.from('mono_transactions')
+    .select('*')
+    .eq('imported', false)
+    .order('created_at', { ascending: false })
+    .limit(50);
+  if(error || !data || !data.length) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">📥</div>Немає нових транзакцій з Моно</div>';
+    return;
+  }
+  monoImportData = data;
+  renderMonoImport();
+}
+
+function renderMonoImport() {
+  const el = document.getElementById('mono-import-list');
+  const allWallets = ALL_WALLETS;
+  const walletOpts = allWallets.map(w=>`<option value="${w.id}">${w.icon} ${w.name} (${USERS[w.owner].name})</option>`).join('');
+
+  el.innerHTML = monoImportData.map(tx => {
+    const isIn = tx.type === 'in';
+    const color = isIn ? '#34c759' : '#ff3b30';
+    const sign = isIn ? '+' : '-';
+    return `<div class="card" style="margin-bottom:10px" id="mitx-${tx.id}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:14px;font-weight:600;margin-bottom:2px">${tx.description || 'Транзакція'}</div>
+          <div style="font-size:11px;color:#6e6e73">${tx.date} · MCC ${tx.mcc||'—'}</div>
+        </div>
+        <div style="font-size:16px;font-weight:700;color:${color};margin-left:10px;flex-shrink:0">${sign}${fmt(Number(tx.amount))}</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <select class="form-input" id="mw-${tx.id}" style="flex:1;font-size:13px">
+          <option value="">— Пропустити —</option>
+          ${walletOpts}
+        </select>
+        <button onclick="importMonoTx(${tx.id},'${tx.type}')" style="padding:9px 14px;background:#007aff;color:#fff;border:none;border-radius:12px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap">
+          Імпорт
+        </button>
+        <button onclick="skipMonoTx(${tx.id})" style="padding:9px 10px;background:#f2f2f7;border:none;border-radius:12px;font-size:13px;cursor:pointer;color:#6e6e73">
+          ✕
+        </button>
+      </div>
+    </div>`;
+  }).join('') + `<div style="text-align:center;padding:12px">
+    <button onclick="importAllMono()" style="padding:12px 24px;background:#34c759;color:#fff;border:none;border-radius:14px;font-size:14px;font-weight:600;cursor:pointer">
+      Імпортувати всі з гаманцями
+    </button>
+  </div>`;
+}
+
+async function importMonoTx(id, type) {
+  const walletEl = document.getElementById('mw-'+id);
+  const wallet = walletEl ? walletEl.value : '';
+  const tx = monoImportData.find(t=>t.id===id);
+  if(!tx) return;
+
+  if(wallet) {
+    const owner = ALL_WALLETS.find(w=>w.id===wallet)?.owner || currentUser;
+    await saveTx({
+      type: tx.type,
+      amount: Number(tx.amount),
+      wallet: tx.type !== 'move' ? wallet : null,
+      category: 'Імпорт Моно',
+      note: tx.description || '',
+      date: tx.date,
+      owner
+    });
+  }
+
+  await db.from('mono_transactions').update({ imported: true, wallet }).eq('id', id);
+  monoImportData = monoImportData.filter(t=>t.id!==id);
+  document.getElementById('mitx-'+id)?.remove();
+  if(!monoImportData.length) {
+    document.getElementById('mono-import-list').innerHTML = '<div class="empty"><div class="empty-icon">✅</div>Всі транзакції оброблено</div>';
+  }
+  await loadData();
+  renderDashboard();
+}
+
+async function skipMonoTx(id) {
+  await db.from('mono_transactions').update({ imported: true }).eq('id', id);
+  monoImportData = monoImportData.filter(t=>t.id!==id);
+  document.getElementById('mitx-'+id)?.remove();
+  if(!monoImportData.length) {
+    document.getElementById('mono-import-list').innerHTML = '<div class="empty"><div class="empty-icon">✅</div>Всі транзакції оброблено</div>';
+  }
+}
+
+async function importAllMono() {
+  if(!monoImportData.length) return;
+  const items = monoImportData.map(tx => {
+    const wallet = document.getElementById('mw-'+tx.id)?.value || '';
+    return { tx, wallet };
+  });
+  for(const { tx, wallet } of items) {
+    await importMonoTx(tx.id, tx.type);
+  }
 }
 
 // ─── INIT ────────────────────────────────────────────────
