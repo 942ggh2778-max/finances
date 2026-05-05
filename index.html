@@ -466,6 +466,78 @@ select.form-input{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://
       </div>
     </div>
 
+    <!-- ANALYTICS -->
+    <div id="sec-analytics" class="section">
+      <div class="analytics-total">
+        <div class="analytics-total-label">Загальний баланс</div>
+        <div class="analytics-total-val" id="total-balance">₴0</div>
+        <div class="analytics-total-sub" id="total-balance-sub">по всіх гаманцях</div>
+      </div>
+      <div class="card" style="margin-bottom:12px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <div class="card-title" style="margin-bottom:0">Витрати по категоріях</div>
+          <div style="display:flex;gap:6px">
+            <button class="small-btn" onclick="setAnalyticsPeriod('month')">Місяць</button>
+            <button class="small-btn" onclick="setAnalyticsPeriod('year')">Рік</button>
+            <button class="small-btn" onclick="setAnalyticsPeriod('all')">Все</button>
+          </div>
+        </div>
+        <div class="pie-wrap"><canvas id="pie-canvas" width="160" height="160"></canvas>
+          <div class="pie-center"><div class="pie-center-val" id="pie-center-val"></div><div class="pie-center-lbl">витрати</div></div>
+        </div>
+        <div class="cat-filter-wrap" id="cat-filter-wrap"></div>
+        <div id="cat-list"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Доходи по категоріях</div>
+        <div id="inc-cat-list"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- EDIT MODAL -->
+  <div id="edit-modal" class="modal-overlay" style="display:none" onclick="closeEditModal(event)">
+    <div class="modal-box">
+      <div class="modal-handle"></div>
+      <div class="modal-title">Редагувати операцію</div>
+      <input type="hidden" id="edit-id">
+      <div class="type-toggle" style="margin-bottom:14px">
+        <button class="type-btn active" onclick="setEditType('in')">↓ Дохід</button>
+        <button class="type-btn" onclick="setEditType('out')">↑ Витрата</button>
+        <button class="type-btn" onclick="setEditType('move')">⇄ Переказ</button>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Сума (₴)</label>
+        <input class="form-input" type="number" id="edit-amount" inputmode="decimal">
+      </div>
+      <div class="form-row">
+        <label class="form-label" id="edit-wallet-lbl">Гаманець</label>
+        <select class="form-input" id="edit-wallet"></select>
+      </div>
+      <div class="form-row" id="edit-to-row" style="display:none">
+        <label class="form-label">Куди</label>
+        <select class="form-input" id="edit-wallet-to"></select>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Категорія</label>
+        <select class="form-input" id="edit-category"></select>
+      </div>
+      <div class="form-grid">
+        <div class="form-row">
+          <label class="form-label">Дата</label>
+          <input class="form-input" type="date" id="edit-date">
+        </div>
+        <div class="form-row">
+          <label class="form-label">Коментар</label>
+          <input class="form-input" type="text" id="edit-note">
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="submit-btn" onclick="deleteTx()" style="flex:1;background:#ff3b30">Видалити</button>
+        <button class="submit-btn" onclick="saveEditTx()" style="flex:2">Зберегти</button>
+      </div>
+    </div>
   </div>
 
   <!-- BOTTOM NAV -->
@@ -473,9 +545,9 @@ select.form-input{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://
     <button class="bnav-btn active" onclick="showSection('dashboard',0)"><span class="bnav-ico">📊</span>Огляд</button>
     <button class="bnav-btn" onclick="showSection('add',1)"><span class="bnav-ico">➕</span>Додати</button>
     <button class="bnav-btn" onclick="showSection('history',2)"><span class="bnav-ico">📋</span>Історія</button>
-    <button class="bnav-btn" onclick="showSection('debtors',3)"><span class="bnav-ico">💳</span>Борги</button>
-    <button class="bnav-btn" onclick="showSection('mono',4)"><span class="bnav-ico">🐱</span>Моно</button>
-    <button class="bnav-btn" onclick="showSection('settings',5)"><span class="bnav-ico">⚙️</span>Налашт.</button>
+    <button class="bnav-btn" onclick="showSection('analytics',3)"><span class="bnav-ico">📈</span>Аналіт.</button>
+    <button class="bnav-btn" onclick="showSection('debtors',4)"><span class="bnav-ico">💳</span>Борги</button>
+    <button class="bnav-btn" onclick="showSection('mono',5)"><span class="bnav-ico">🐱</span>Моно</button>
   </div>
 </div>
 
