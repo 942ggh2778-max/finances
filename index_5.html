@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Фінанси</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f2f2f7;color:#1c1c1e;min-height:100vh}
+.app{max-width:430px;margin:0 auto;padding:12px;padding-bottom:84px}
+.hidden{display:none!important}
+.auth-screen{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px;background:#f2f2f7}
+.user-cards{display:grid;grid-template-columns:1fr 1fr;gap:12px;width:100%;max-width:300px}
+.user-card{background:#fff;border:1px solid #e5e5ea;border-radius:18px;padding:20px;cursor:pointer;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.08);transition:transform .1s}
+.user-card:active{transform:scale(.96)}
+.pin-dots{display:flex;gap:14px;justify-content:center;margin:8px 0}
+.pdot{width:14px;height:14px;border-radius:50%;background:#e5e5ea;border:2px solid #c7c7cc;transition:all .15s}
+.pdot.on{background:#007aff;border-color:#007aff}
+.pin-hint{font-size:12px;color:#6e6e73;height:18px;text-align:center}
+.pin-err{color:#ff3b30!important}
+.numpad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;width:100%;max-width:260px}
+.nk{padding:16px;background:#fff;border:1px solid #e5e5ea;border-radius:14px;font-size:20px;font-weight:500;cursor:pointer;color:#1c1c1e;box-shadow:0 1px 3px rgba(0,0,0,.06);transition:background .1s}
+.nk:active{background:#e5e5ea}
+.back-lnk{font-size:14px;color:#007aff;background:none;border:none;cursor:pointer;margin-top:4px}
+.topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;background:#fff;border-radius:14px;padding:10px 14px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.topuser{display:flex;align-items:center;gap:10px}
+.tavatar{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:600}
+.syncdot{width:7px;height:7px;border-radius:50%;background:#34c759;display:inline-block;margin-right:4px}
+.syncdot.loading{background:#ff9500;animation:pulse 1s infinite}
+.syncdot.error{background:#ff3b30}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.logout-btn{font-size:12px;color:#6e6e73;background:#f2f2f7;border:none;border-radius:8px;padding:5px 10px;cursor:pointer}
+.bnav{position:fixed;bottom:0;left:0;right:0;max-width:430px;margin:0 auto;background:#fff;border-top:.5px solid #e5e5ea;display:flex;padding:6px 0 env(safe-area-inset-bottom);z-index:100}
+.bnav-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:4px 2px;border:none;background:transparent;cursor:pointer;color:#8e8e93;font-size:10px;font-weight:500}
+.bnav-btn.active{color:#007aff}
+.bnav-ico{font-size:22px;line-height:1.1}
+.sec{display:none}
+.sec.active{display:block}
+.card{background:#fff;border-radius:16px;padding:16px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.card-ttl{font-size:11px;font-weight:700;color:#8e8e93;text-transform:uppercase;letter-spacing:.6px;margin-bottom:12px}
+.wgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.wcrd{background:#fff;border-radius:16px;padding:14px;box-shadow:0 1px 3px rgba(0,0,0,.06);cursor:pointer;transition:transform .1s;position:relative;overflow:hidden}
+.wcrd:active{transform:scale(.97)}
+.wcrd-accent{position:absolute;top:0;left:0;right:0;height:3px}
+.wcrd-top{display:flex;align-items:center;gap:6px;margin-bottom:8px}
+.wcrd-name{font-size:12px;font-weight:600;color:#6e6e73}
+.wcrd-bal{font-size:19px;font-weight:700}
+.wcrd-bal.pos{color:#1c1c1e}
+.wcrd-bal.neg{color:#ff3b30}
+.wcrd-owner{font-size:10px;color:#aeaeb2;margin-top:2px}
+.stats2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.scard{background:#f2f2f7;border-radius:12px;padding:12px}
+.scard-lbl{font-size:11px;color:#6e6e73;margin-bottom:3px}
+.scard-val{font-size:20px;font-weight:700}
+.scard-val.pos{color:#34c759}
+.scard-val.neg{color:#ff3b30}
+.txi{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:.5px solid #f2f2f7;cursor:pointer}
+.txi:last-child{border-bottom:none}
+.txi-ico{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.txi-ico.in{background:#e8f5e9}
+.txi-ico.out{background:#fce4ec}
+.txi-ico.move{background:#e3f2fd}
+.txi-body{flex:1;min-width:0}
+.txi-name{font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.txi-meta{font-size:11px;color:#6e6e73;margin-top:1px}
+.txi-right{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.txi-amt{font-size:14px;font-weight:700}
+.txi-amt.in{color:#34c759}
+.txi-amt.out{color:#ff3b30}
+.txi-amt.move{color:#007aff}
+.txi-arr{font-size:14px;color:#c7c7cc}
+.dgrp{font-size:12px;font-weight:600;color:#6e6e73;padding:10px 0 5px;border-bottom:.5px solid #f2f2f7;margin-bottom:2px;display:flex;justify-content:space-between}
+.fsec{background:#fff;border-radius:16px;padding:16px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.frow{margin-bottom:12px}
+.flbl{font-size:13px;font-weight:500;color:#3c3c43;margin-bottom:6px;display:block}
+.finp{width:100%;padding:11px 14px;border:1px solid #e5e5ea;border-radius:12px;font-size:15px;background:#f9f9f9;color:#1c1c1e;-webkit-appearance:none;appearance:none}
+.finp:focus{outline:none;border-color:#007aff;background:#fff}
+select.finp{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236e6e73' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:36px}
+.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.ttog{display:flex;background:#f2f2f7;border-radius:12px;padding:3px;margin-bottom:14px}
+.tbtn{flex:1;padding:8px 4px;border:none;background:transparent;border-radius:10px;font-size:13px;font-weight:500;cursor:pointer;color:#6e6e73;transition:all .15s}
+.tbtn.active{background:#fff;color:#1c1c1e;box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.owntog{display:flex;background:#f2f2f7;border-radius:12px;padding:3px;margin-bottom:14px}
+.obtn{flex:1;padding:8px;border:none;background:transparent;border-radius:10px;font-size:13px;font-weight:500;cursor:pointer;color:#6e6e73;transition:all .15s}
+.obtn.active{background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.obtn.me.active{color:#007aff}
+.obtn.wife.active{color:#ff2d55}
+.savebtn{width:100%;padding:14px;background:#007aff;color:#fff;border:none;border-radius:14px;font-size:16px;font-weight:600;cursor:pointer;margin-top:4px}
+.savebtn:active{opacity:.8}
+.savebtn.red{background:#ff3b30}
+.amt-wrap{text-align:center;padding:14px 0 6px}
+.amt-cur{font-size:28px;font-weight:300;color:#6e6e73;vertical-align:top;margin-top:8px;display:inline-block}
+.amt-inp{font-size:48px;font-weight:700;border:none;background:transparent;text-align:center;width:200px;color:#1c1c1e;outline:none}
+.amt-inp::placeholder{color:#c7c7cc}
+.seg{display:flex;background:#f2f2f7;border-radius:12px;padding:3px;margin-bottom:14px}
+.sbtn{flex:1;padding:7px 4px;border:none;background:transparent;border-radius:10px;font-size:12px;font-weight:500;cursor:pointer;color:#6e6e73;transition:all .15s}
+.sbtn.active{background:#fff;color:#1c1c1e;box-shadow:0 1px 3px rgba(0,0,0,.1)}
+.mnav{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.mnav button{background:#fff;border:1px solid #e5e5ea;border-radius:10px;padding:6px 16px;cursor:pointer;font-size:16px;color:#007aff;box-shadow:0 1px 2px rgba(0,0,0,.06)}
+.mnav-lbl{font-size:16px;font-weight:600}
+.dbi{padding:12px 0;border-bottom:.5px solid #f2f2f7}
+.dbi:last-child{border-bottom:none}
+.paid-btn{font-size:12px;color:#34c759;background:none;border:1px solid #34c759;border-radius:8px;padding:4px 10px;cursor:pointer;margin-top:6px}
+.debt-total{background:#fce4ec;border-radius:12px;padding:12px 14px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center}
+.bar{margin-bottom:10px}
+.bar-row{display:flex;justify-content:space-between;margin-bottom:4px;font-size:13px}
+.bar-track{height:8px;background:#f2f2f7;border-radius:99px;overflow:hidden}
+.bar-fill{height:100%;border-radius:99px;transition:width .5s}
+.mono-header{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.mono-logo{width:40px;height:40px;border-radius:12px;background:#1d1d1d;display:flex;align-items:center;justify-content:center;font-size:20px}
+.mono-acc{display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-bottom:.5px solid #f2f2f7}
+.mono-acc:last-child{border-bottom:none}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;display:flex;align-items:flex-end;justify-content:center}
+.mbox{background:#f2f2f7;border-radius:24px 24px 0 0;width:100%;max-width:430px;max-height:92vh;overflow-y:auto;padding:16px 16px 36px}
+.mhandle{width:36px;height:4px;background:#c7c7cc;border-radius:99px;margin:0 auto 16px}
+.mtitle{font-size:17px;font-weight:600;text-align:center;margin-bottom:16px}
+.mactions{display:flex;gap:8px;margin-top:12px}
+.total-banner{background:linear-gradient(135deg,#007aff,#5ac8fa);border-radius:20px;padding:22px;margin-bottom:14px;color:#fff;text-align:center}
+.total-val{font-size:38px;font-weight:700;margin:4px 0}
+.period-btns{display:flex;gap:6px}
+.pbtn{padding:5px 14px;border-radius:99px;font-size:12px;font-weight:600;border:1px solid #e5e5ea;background:#fff;cursor:pointer;color:#6e6e73}
+.pbtn.active{background:#007aff;color:#fff;border-color:#007aff}
+.pie-wrap{position:relative;width:160px;height:160px;margin:0 auto 14px}
+.pie-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none}
+.pie-val{font-size:18px;font-weight:700}
+.cat-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.chip{padding:5px 12px;border-radius:99px;font-size:12px;font-weight:500;border:1px solid #e5e5ea;background:#fff;cursor:pointer}
+.chip.on{color:#fff;border-color:transparent}
+.crow{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:.5px solid #f2f2f7}
+.crow:last-child{border-bottom:none}
+.cdot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.cinfo{flex:1}
+.cname{font-size:14px;font-weight:500}
+.cpct{font-size:11px;color:#6e6e73}
+.camt{font-size:14px;font-weight:700}
+.ctags{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 4px}
+.ctag{padding:6px 12px;border-radius:99px;font-size:13px;font-weight:500;border:1.5px solid #e5e5ea;background:#f2f2f7;cursor:pointer;display:inline-flex;align-items:center;gap:4px;transition:all .15s}
+.ctag.sel{background:#007aff;color:#fff;border-color:#007aff}
+.ctag-del{font-size:11px;opacity:.7;cursor:pointer;margin-left:2px}
+.addcat-row{display:flex;gap:8px;margin-top:10px}
+.addcat-row input{flex:1;padding:9px 12px;border:1px solid #e5e5ea;border-radius:10px;font-size:14px;background:#f9f9f9;color:#1c1c1e}
+.addcat-row input:focus{outline:none;border-color:#007aff}
+.addcat-row button{padding:9px 14px;background:#007aff;color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
+.wdet-header{border-radius:18px;padding:20px;margin-bottom:14px;color:#fff;text-align:center}
+.wdet-stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.wdet-stat{background:#fff;border-radius:14px;padding:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.wdet-stat-lbl{font-size:11px;color:#6e6e73;margin-bottom:3px}
+.wdet-stat-val{font-size:18px;font-weight:700}
+.srow{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:.5px solid #f2f2f7}
+.srow:last-child{border-bottom:none}
+.srow-lbl{font-size:14px;font-weight:500}
+.srow-val{font-size:14px;color:#6e6e73}
+.sml-btn{font-size:13px;color:#007aff;background:none;border:none;cursor:pointer;font-weight:500}
+.empty{text-align:center;padding:28px 16px;color:#aeaeb2;font-size:14px}
+.eico{font-size:32px;margin-bottom:8px}
+.badge{display:inline-block;font-size:9px;padding:2px 5px;border-radius:6px;font-weight:600;margin-left:4px;vertical-align:middle}
+.bme{background:#e3f2fd;color:#0c447c}
+.bwife{background:#fce4ec;color:#880e4f}
+.spinner{width:28px;height:28px;border:3px solid #e5e5ea;border-top-color:#007aff;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-overlay{position:fixed;inset:0;background:rgba(242,242,247,.85);display:flex;align-items:center;justify-content:center;z-index:999;flex-direction:column;gap:10px;font-size:14px;color:#6e6e73}
+</style>
+</head>
+<body>
+
+<div class="loading-overlay" id="loverlay"><div class="spinner"></div><span>Завантаження...</span></div>
+
+<div id="sauth" style="display:none">
+  <div class="auth-screen">
+    <div style="font-size:52px">💰</div>
+    <div style="font-size:22px;font-weight:700">Фінанси</div>
+    <div style="font-size:14px;color:#6e6e73">Оберіть акаунт</div>
+    <div class="user-cards">
+      <div class="user-card" onclick="selUser('me')"><div style="font-size:34px;margin-bottom:8px">👨</div><div style="font-size:15px;font-weight:600">Я</div><div style="font-size:11px;color:#6e6e73;margin-top:2px">Адміністратор</div></div>
+      <div class="user-card" onclick="selUser('wife')"><div style="font-size:34px;margin-bottom:8px">👩</div><div style="font-size:15px;font-weight:600">Дружина</div><div style="font-size:11px;color:#6e6e73;margin-top:2px">Мій акаунт</div></div>
+    </div>
+  </div>
+</div>
+
+<div id="spin" style="display:none">
+  <div class="auth-screen">
+    <div style="font-size:52px" id="pin-ico">👨</div>
+    <div style="font-size:22px;font-weight:700" id="pin-name">PIN</div>
+    <div class="pin-dots"><div class="pdot" id="pd0"></div><div class="pdot" id="pd1"></div><div class="pdot" id="pd2"></div><div class="pdot" id="pd3"></div></div>
+    <div class="pin-hint" id="pin-hint"></div>
+    <div class="numpad">
+      <button class="nk" onclick="pk('1')">1</button><button class="nk" onclick="pk('2')">2</button><button class="nk" onclick="pk('3')">3</button>
+      <button class="nk" onclick="pk('4')">4</button><button class="nk" onclick="pk('5')">5</button><button class="nk" onclick="pk('6')">6</button>
+      <button class="nk" onclick="pk('7')">7</button><button class="nk" onclick="pk('8')">8</button><button class="nk" onclick="pk('9')">9</button>
+      <button class="nk" style="visibility:hidden"></button><button class="nk" onclick="pk('0')">0</button><button class="nk" onclick="pk('del')">⌫</button>
+    </div>
+    <button class="back-lnk" onclick="showAuth()">← Назад</button>
+  </div>
+</div>
+
+<div id="smain" style="display:none">
+  <div class="app">
+    <div class="topbar">
+      <div class="topuser">
+        <div class="tavatar" id="hdr-av"></div>
+        <div><div style="font-size:14px;font-weight:600" id="hdr-name"></div><div style="font-size:11px;color:#6e6e73" id="hdr-role"></div></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <span><span class="syncdot" id="sdot"></span><span id="stxt" style="font-size:11px;color:#6e6e73">синхр.</span></span>
+        <button class="logout-btn" onclick="logout()">Вийти</button>
+      </div>
+    </div>
+
+    <div id="s-dashboard" class="sec active">
+      <div id="dash-seg" class="seg hidden"><button class="sbtn active" onclick="setDV('all',0)">Спільний</button><button class="sbtn" onclick="setDV('me',1)">Мій</button><button class="sbtn" onclick="setDV('wife',2)">Дружина</button></div>
+      <div id="wgrid" class="wgrid"></div>
+      <div class="stats2">
+        <div class="scard"><div class="scard-lbl">Дохід місяця</div><div class="scard-val pos" id="st-in">₴0</div></div>
+        <div class="scard"><div class="scard-lbl">Витрати місяця</div><div class="scard-val neg" id="st-out">₴0</div></div>
+      </div>
+      <div class="card"><div class="card-ttl">Баланс по гаманцях</div><div id="barchart"></div></div>
+      <div class="card"><div class="card-ttl">Останні операції</div><div id="recent"></div></div>
+    </div>
+
+    <div id="s-add" class="sec">
+      <div class="fsec">
+        <div class="ttog">
+          <button class="tbtn active" onclick="setTT('in')">↓ Дохід</button>
+          <button class="tbtn" onclick="setTT('out')">↑ Витрата</button>
+          <button class="tbtn" onclick="setTT('move')">⇄ Переказ</button>
+        </div>
+        <div id="own-pick" class="owntog hidden">
+          <button class="obtn me active" onclick="setOwn('me')">👨 Мій</button>
+          <button class="obtn wife" onclick="setOwn('wife')">👩 Дружини</button>
+        </div>
+        <div class="amt-wrap"><span class="amt-cur">₴</span><input class="amt-inp" type="number" id="a-amt" placeholder="0" inputmode="decimal"></div>
+        <div class="frow"><label class="flbl" id="wlt-lbl">Гаманець</label><select class="finp" id="a-wallet"></select></div>
+        <div class="frow hidden" id="towlt-row"><label class="flbl">Куди</label><select class="finp" id="a-wallet2"></select></div>
+        <div class="frow">
+          <label class="flbl">Категорія</label>
+          <div class="ctags" id="cat-tags"></div>
+          <input type="hidden" id="a-cat" value="">
+          <div class="addcat-row"><input type="text" id="newcat-inp" placeholder="Нова категорія..."><button onclick="addCat()">+ Додати</button></div>
+        </div>
+        <div class="fgrid">
+          <div class="frow"><label class="flbl">Дата</label><input class="finp" type="date" id="a-date"></div>
+          <div class="frow"><label class="flbl">Коментар</label><input class="finp" type="text" id="a-note" placeholder="Необов'язково"></div>
+        </div>
+        <button class="savebtn" id="save-btn" onclick="addTx()">Зберегти</button>
+      </div>
+    </div>
+
+    <div id="s-history" class="sec">
+      <div class="mnav"><button onclick="chM(-1)">&#8249;</button><span class="mnav-lbl" id="mlbl"></span><button onclick="chM(1)">&#8250;</button></div>
+      <div id="hist-seg" class="seg hidden"><button class="sbtn active" onclick="setHV('all',0)">Всі</button><button class="sbtn" onclick="setHV('me',1)">Мої</button><button class="sbtn" onclick="setHV('wife',2)">Дружини</button></div>
+      <div class="card" style="margin-bottom:0"><div id="histlist"></div></div>
+    </div>
+
+    <div id="s-analytics" class="sec">
+      <div class="total-banner">
+        <div style="font-size:13px;opacity:.8;margin-bottom:4px">Загальний баланс</div>
+        <div class="total-val" id="tot-bal">₴0</div>
+        <div style="font-size:12px;opacity:.7;margin-top:4px" id="tot-sub">по всіх гаманцях</div>
+      </div>
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <div class="card-ttl" style="margin:0">Витрати</div>
+          <div class="period-btns">
+            <button class="pbtn active" onclick="setPer('month',this)">Місяць</button>
+            <button class="pbtn" onclick="setPer('year',this)">Рік</button>
+            <button class="pbtn" onclick="setPer('all',this)">Все</button>
+          </div>
+        </div>
+        <div class="pie-wrap"><canvas id="pie" width="160" height="160"></canvas><div class="pie-center"><div class="pie-val" id="pie-val">₴0</div><div style="font-size:11px;color:#6e6e73">витрати</div></div></div>
+        <div class="cat-chips" id="cat-chips"></div>
+        <div id="cat-out-list"></div>
+      </div>
+      <div class="card"><div class="card-ttl">Доходи по категоріях</div><div id="cat-in-list"></div></div>
+    </div>
+
+    <div id="s-debtors" class="sec">
+      <div id="debt-total-wrap"></div>
+      <div class="card"><div class="card-ttl">Активні борги</div><div id="debtlist"><div class="empty"><div class="eico">&#10003;</div>Боргів немає</div></div></div>
+      <div class="fsec">
+        <div class="card-ttl" style="margin-bottom:14px">Додати борг</div>
+        <div class="frow"><label class="flbl">Клієнт / назва</label><input class="finp" type="text" id="db-name" placeholder="Ім'я або назва"></div>
+        <div class="fgrid">
+          <div class="frow"><label class="flbl">Сума (₴)</label><input class="finp" type="number" id="db-amt" inputmode="decimal"></div>
+          <div class="frow"><label class="flbl">Дата</label><input class="finp" type="date" id="db-date"></div>
+        </div>
+        <div class="frow"><label class="flbl">Коментар</label><input class="finp" type="text" id="db-note" placeholder="За що, деталі"></div>
+        <button class="savebtn" onclick="addDebt()">Додати борг</button>
+      </div>
+    </div>
+
+    <div id="s-mono" class="sec">
+      <div class="seg" id="mono-seg">
+        <button class="sbtn active" onclick="setMTab('cards',0)">&#128179; Картки</button>
+        <button class="sbtn" onclick="setMTab('import',1)">&#128229; Імпорт</button>
+      </div>
+      <div id="mono-cards">
+        <div class="card">
+          <div class="mono-header"><div class="mono-logo">&#128049;</div><div><div style="font-size:16px;font-weight:600">Monobank</div><div style="font-size:12px;color:#6e6e73">Баланс карток</div></div></div>
+          <div id="mono-user-seg" class="seg hidden"><button class="sbtn active" onclick="setMU('me',0)">&#128104; Мій</button><button class="sbtn" onclick="setMU('wife',1)">&#128105; Дружини</button></div>
+          <div class="frow"><label class="flbl">Токен API (Налаштування → Інші → API)</label><input class="finp" type="password" id="mono-tok" placeholder="Вставте токен"></div>
+          <button class="savebtn" onclick="connectMono()">Показати баланс</button>
+        </div>
+        <div id="mono-res"></div>
+      </div>
+      <div id="mono-import" style="display:none">
+        <div class="card" style="margin-bottom:12px">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div class="card-ttl" style="margin:0">Нові транзакції</div>
+            <button class="sml-btn" onclick="loadMI()">↻ Оновити</button>
+          </div>
+          <div style="font-size:12px;color:#6e6e73;margin-top:4px">Оберіть гаманець і натисніть Імпорт</div>
+        </div>
+        <div id="mi-list"><div class="empty"><div class="eico">&#128229;</div>Немає нових транзакцій</div></div>
+      </div>
+    </div>
+
+    <div id="s-settings" class="sec">
+      <div class="card">
+        <div class="card-ttl">PIN-коди</div>
+        <div class="srow"><div class="srow-lbl">&#128104; Мій PIN</div><button class="sml-btn" onclick="changePin('me')">Змінити</button></div>
+        <div class="srow"><div class="srow-lbl">&#128105; PIN дружини</div><button class="sml-btn" onclick="changePin('wife')">Змінити</button></div>
+      </div>
+      <div class="card">
+        <div class="card-ttl">Статистика</div>
+        <div class="srow"><div class="srow-lbl">Транзакцій</div><div class="srow-val" id="s-txc">0</div></div>
+        <div class="srow"><div class="srow-lbl">Активних боргів</div><div class="srow-val" id="s-dbc">0</div></div>
+        <div class="srow"><div class="srow-lbl">База даних</div><div class="srow-val">Supabase ☁️</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="overlay" id="wmod" style="display:none" onclick="if(event.target===this)closeWM()">
+    <div class="mbox">
+      <div class="mhandle"></div>
+      <div id="wmod-header" class="wdet-header"></div>
+      <div class="wdet-stats">
+        <div class="wdet-stat"><div class="wdet-stat-lbl">Дохід цього місяця</div><div class="wdet-stat-val pos" id="wm-in">₴0</div></div>
+        <div class="wdet-stat"><div class="wdet-stat-lbl">Витрати цього місяця</div><div class="wdet-stat-val neg" id="wm-out">₴0</div></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div class="card-ttl" style="margin:0">Операції</div>
+        <button class="sml-btn" onclick="addForWallet()">+ Додати</button>
+      </div>
+      <div id="wmod-list"></div>
+    </div>
+  </div>
+
+  <div class="overlay" id="emod" style="display:none" onclick="if(event.target===this)closeEM()">
+    <div class="mbox">
+      <div class="mhandle"></div>
+      <div class="mtitle">Редагувати операцію</div>
+      <input type="hidden" id="e-id">
+      <div class="ttog">
+        <button class="tbtn active" onclick="setET('in')">↓ Дохід</button>
+        <button class="tbtn" onclick="setET('out')">↑ Витрата</button>
+        <button class="tbtn" onclick="setET('move')">⇄ Переказ</button>
+      </div>
+      <div class="frow"><label class="flbl">Сума (₴)</label><input class="finp" type="number" id="e-amt" inputmode="decimal"></div>
+      <div class="frow"><label class="flbl" id="e-wlt-lbl">Гаманець</label><select class="finp" id="e-wallet"></select></div>
+      <div class="frow hidden" id="e-to-row"><label class="flbl">Куди</label><select class="finp" id="e-wallet2"></select></div>
+      <div class="frow"><label class="flbl">Категорія</label><select class="finp" id="e-cat"></select></div>
+      <div class="fgrid">
+        <div class="frow"><label class="flbl">Дата</label><input class="finp" type="date" id="e-date"></div>
+        <div class="frow"><label class="flbl">Коментар</label><input class="finp" type="text" id="e-note"></div>
+      </div>
+      <div class="mactions">
+        <button class="savebtn red" onclick="delTx()" style="flex:1">Видалити</button>
+        <button class="savebtn" onclick="saveET()" style="flex:2">Зберегти</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="bnav">
+    <button class="bnav-btn active" onclick="goSec('dashboard',0)"><span class="bnav-ico">📊</span>Огляд</button>
+    <button class="bnav-btn" onclick="goSec('add',1)"><span class="bnav-ico">➕</span>Додати</button>
+    <button class="bnav-btn" onclick="goSec('history',2)"><span class="bnav-ico">📋</span>Історія</button>
+    <button class="bnav-btn" onclick="goSec('analytics',3)"><span class="bnav-ico">📈</span>Аналіт.</button>
+    <button class="bnav-btn" onclick="goSec('debtors',4)"><span class="bnav-ico">💳</span>Борги</button>
+    <button class="bnav-btn" onclick="goSec('mono',5)"><span class="bnav-ico">🐱</span>Моно</button>
+  </div>
+</div>
+
+<script>
+const SURL='https://svmwxextsfzwsgvjwbvp.supabase.co';
+const SKEY='sb_publishable_lepy_elx0wbOZzTtIPe8ew_Pw1H6FQ2';
+const {createClient}=supabase;
+const db=createClient(SURL,SKEY);
+
+const USERS={me:{name:'Я',icon:'👨',role:'Адміністратор',bg:'#e3f2fd',col:'#0c447c'},wife:{name:'Дружина',icon:'👩',role:'Мій акаунт',bg:'#fce4ec',col:'#880e4f'}};
+const WS=[
+  {id:'biz',name:'Бізнес',icon:'🏭',owner:'me',color:'#007aff'},
+  {id:'oil',name:'Масло',icon:'🛢️',owner:'me',color:'#34c759'},
+  {id:'fuel',name:'Паливо/Аморт',icon:'⛽',owner:'me',color:'#ff9500'},
+  {id:'salary',name:'Зарплата',icon:'💼',owner:'me',color:'#af52de'},
+  {id:'cash',name:'Каса',icon:'💵',owner:'me',color:'#ff2d55'},
+  {id:'personal',name:'Особисті',icon:'🏠',owner:'me',color:'#5ac8fa'},
+  {id:'wsalary',name:'Зарплата',icon:'💼',owner:'wife',color:'#ff2d55'},
+  {id:'wpersonal',name:'Особисті',icon:'🏠',owner:'wife',color:'#ff6b35'},
+];
+const BASE_CATS={
+  in:['Зарплата','Паливо від фірми','Амортизація','Продаж запчастин','Продаж масла','Оплата клієнта','Інше надходження'],
+  out:['Постачальник запчастин','Постачальник масла','Паливо','Продукти','Авто','Комуналка','Кафе','Одяг','Ліки','Інше'],
+  move:['Переказ між гаманцями']
+};
+const MONTHS=['Січень','Лютий','Березень','Квітень','Травень','Червень','Липень','Серпень','Вересень','Жовтень','Листопад','Грудень'];
+const COLORS=['#007aff','#34c759','#ff9500','#ff2d55','#af52de','#5ac8fa','#ffcc00','#ff6b35','#30d158','#64d2ff','#bf5af2','#ffd60a'];
+
+let cu=null,pinBuf='',pendU=null;
+let txType='in',ownPick='me',dashV='all',histV='all',monoU='me';
+let curM=new Date().getMonth(),curY=new Date().getFullYear();
+let txs=[],debts=[],monoTokens={me:null,wife:null};
+let analyticsPer='month',selCats=new Set();
+let curWalletId=null,editType='in';
+let customCats=JSON.parse(localStorage.getItem('fcats')||'{"in":[],"out":[],"move":[]}');
+let pins=JSON.parse(localStorage.getItem('fpins')||'{"me":"1234","wife":"0000"}');
+let miData=[];
+
+function fmt(n){return'₴'+Math.round(n).toLocaleString('uk-UA')}
+function fmtD(s){if(!s)return'';const d=new Date(s);return d.toLocaleDateString('uk-UA',{day:'2-digit',month:'2-digit',year:'2-digit'})}
+function today(){return new Date().toISOString().slice(0,10)}
+function allCats(t){return[...(BASE_CATS[t]||[]),...(customCats[t]||[])]}
+function g(id){return document.getElementById(id)}
+function sync(s){const d=g('sdot'),t=g('stxt');if(!d)return;d.className='syncdot'+(s==='ok'?'':s==='loading'?' loading':' error');t.textContent=s==='ok'?'синхр.':s==='loading'?'завант…':'помилка'}
+
+async function loadData(){
+  sync('loading');
+  try{
+    const[a,b,c]=await Promise.all([
+      db.from('transactions').select('*').order('date',{ascending:false}),
+      db.from('debtors').select('*').order('created_at',{ascending:false}),
+      db.from('mono_tokens').select('*')
+    ]);
+    if(a.error||b.error)throw a.error||b.error;
+    txs=a.data||[];debts=b.data||[];
+    if(c.data)c.data.forEach(r=>{monoTokens[r.owner]=r.token});
+    sync('ok');
+  }catch(e){sync('error');console.error(e)}
+}
+async function saveTxDB(tx){sync('loading');const{error}=await db.from('transactions').insert([tx]);if(error){sync('error');return false}sync('ok');return true}
+async function updTxDB(id,d){sync('loading');const{error}=await db.from('transactions').update(d).eq('id',id);if(error){sync('error');return false}sync('ok');return true}
+async function rmTxDB(id){sync('loading');const{error}=await db.from('transactions').delete().eq('id',id);if(error){sync('error');return false}sync('ok');return true}
+async function saveDebtDB(d){sync('loading');const{error}=await db.from('debtors').insert([d]);if(error){sync('error');return false}sync('ok');return true}
+async function markPaid(id){await db.from('debtors').update({paid:true}).eq('id',id);await loadData();renderAll()}
+
+function showAuth(){g('sauth').style.display='block';g('spin').style.display='none';g('smain').style.display='none'}
+function selUser(uid){pendU=uid;pinBuf='';g('pin-ico').textContent=USERS[uid].icon;g('pin-name').textContent=USERS[uid].name;g('pin-hint').textContent='';updDots();g('sauth').style.display='none';g('spin').style.display='block'}
+function pk(k){
+  if(k==='del'){pinBuf=pinBuf.slice(0,-1);updDots();return}
+  if(pinBuf.length>=4)return;
+  pinBuf+=k;updDots();
+  if(pinBuf.length===4)setTimeout(async()=>{
+    if(pinBuf===pins[pendU])await login(pendU);
+    else{const h=g('pin-hint');h.textContent='Невірний PIN';h.className='pin-hint pin-err';pinBuf='';updDots();setTimeout(()=>{h.textContent='';h.className='pin-hint'},1500)}
+  },120);
+}
+function updDots(){for(let i=0;i<4;i++)g('pd'+i).className='pdot'+(i<pinBuf.length?' on':'')}
+async function login(uid){
+  cu=uid;const u=USERS[uid];
+  const av=g('hdr-av');av.textContent=u.icon;av.style.background=u.bg;av.style.color=u.col;
+  g('hdr-name').textContent=u.name;g('hdr-role').textContent=u.role;
+  const isA=uid==='me';
+  ['dash-seg','hist-seg','mono-user-seg','own-pick'].forEach(id=>{const el=g(id);if(el){if(isA)el.classList.remove('hidden');else el.classList.add('hidden')}});
+  dashV='all';histV='all';ownPick=uid;monoU=uid;
+  g('a-date').value=today();g('db-date').value=today();
+  g('spin').style.display='none';g('smain').style.display='block';
+  initForm();goSec('dashboard',0);
+  await loadData();
+  if(monoTokens[uid])g('mono-tok').value=monoTokens[uid];
+  renderAll();
+}
+function logout(){cu=null;showAuth()}
+
+function goSec(name,idx){
+  document.querySelectorAll('.sec').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.bnav-btn').forEach(b=>b.classList.remove('active'));
+  g('s-'+name).classList.add('active');
+  document.querySelectorAll('.bnav-btn')[idx].classList.add('active');
+  if(name==='history')renderHistory();
+  if(name==='debtors')renderDebtors();
+  if(name==='analytics')renderAnalytics();
+  if(name==='settings'){g('s-txc').textContent=txs.length;g('s-dbc').textContent=debts.filter(d=>!d.paid).length}
+}
+function setSA(cid,idx){document.querySelectorAll('#'+cid+' .sbtn').forEach((b,i)=>b.classList.toggle('active',i===idx))}
+function setDV(v,i){dashV=v;setSA('dash-seg',i);renderDashboard()}
+function setHV(v,i){histV=v;setSA('hist-seg',i);renderHistory()}
+function setMU(v,i){monoU=v;setSA('mono-user-seg',i);g('mono-tok').value=monoTokens[v]||'';g('mono-res').innerHTML=''}
+
+function initForm(){populateWS();renderCatTags();setTT('in')}
+function populateWS(){
+  const uid=cu==='me'?ownPick:cu;
+  const my=WS.filter(w=>w.owner===uid);
+  g('a-wallet').innerHTML=my.map(w=>`<option value="${w.id}">${w.icon} ${w.name}</option>`).join('');
+  g('a-wallet2').innerHTML=WS.map(w=>`<option value="${w.id}">${w.icon} ${w.name} (${USERS[w.owner].name})</option>`).join('');
+}
+function setTT(t){
+  txType=t;
+  document.querySelectorAll('#s-add .tbtn').forEach((b,i)=>b.classList.toggle('active',['in','out','move'][i]===t));
+  g('wlt-lbl').textContent=t==='move'?'Звідки':'Гаманець';
+  g('towlt-row').classList.toggle('hidden',t!=='move');
+  renderCatTags();
+}
+function setOwn(v){
+  ownPick=v;
+  document.querySelectorAll('.obtn').forEach((b,i)=>b.classList.toggle('active',['me','wife'][i]===v));
+  populateWS();
+}
+function renderCatTags(sel){
+  const cats=allCats(txType);
+  const cur=sel||g('a-cat').value||cats[0]||'';
+  g('a-cat').value=cur;
+  const wrap=g('cat-tags');if(!wrap)return;
+  wrap.innerHTML=cats.map(c=>{
+    const isSel=c===cur,isC=(customCats[txType]||[]).includes(c);
+    return`<span class="ctag${isSel?' sel':''}" onclick="selCT('${c.replace(/'/g,"\\'")}')">${c}${isC?`<span class="ctag-del" onclick="event.stopPropagation();delCat('${c.replace(/'/g,"\\'")}')">✕</span>`:''}</span>`;
+  }).join('');
+}
+function selCT(c){g('a-cat').value=c;renderCatTags(c)}
+function delCat(c){customCats[txType]=(customCats[txType]||[]).filter(x=>x!==c);localStorage.setItem('fcats',JSON.stringify(customCats));renderCatTags()}
+function addCat(){
+  const inp=g('newcat-inp'),v=inp.value.trim();
+  if(!v)return;
+  if(!customCats[txType])customCats[txType]=[];
+  if(!allCats(txType).includes(v)){customCats[txType].push(v);localStorage.setItem('fcats',JSON.stringify(customCats))}
+  inp.value='';renderCatTags(v);
+}
+
+async function addTx(){
+  const amt=parseFloat(g('a-amt').value);
+  if(!amt||amt<=0){alert('Введіть суму');return}
+  const uid=cu==='me'?ownPick:cu;
+  const btn=g('save-btn');btn.disabled=true;btn.textContent='Збереження...';
+  const tx={type:txType,amount:amt,wallet:txType!=='move'?g('a-wallet').value:null,from:txType==='move'?g('a-wallet').value:null,to:txType==='move'?g('a-wallet2').value:null,category:g('a-cat').value,note:g('a-note').value,date:g('a-date').value||today(),owner:uid};
+  const ok=await saveTxDB(tx);
+  btn.disabled=false;btn.textContent='Зберегти';
+  if(!ok){alert('Помилка збереження');return}
+  g('a-amt').value='';g('a-note').value='';
+  await loadData();renderAll();goSec('dashboard',0);
+}
+async function addDebt(){
+  const name=g('db-name').value.trim(),amt=parseFloat(g('db-amt').value);
+  if(!name||!amt){alert('Введіть ім\'я та суму');return}
+  const ok=await saveDebtDB({name,amount:amt,note:g('db-note').value,date:g('db-date').value||today(),paid:false,owner:cu});
+  if(!ok){alert('Помилка');return}
+  g('db-name').value='';g('db-amt').value='';g('db-note').value='';
+  await loadData();renderDebtors();
+}
+
+function getBal(wid){
+  return txs.reduce((s,tx)=>{
+    if(tx.type==='in'&&tx.wallet===wid)return s+Number(tx.amount);
+    if(tx.type==='out'&&tx.wallet===wid)return s-Number(tx.amount);
+    if(tx.type==='move'&&tx.from===wid)return s-Number(tx.amount);
+    if(tx.type==='move'&&tx.to===wid)return s+Number(tx.amount);
+    return s;
+  },0);
+}
+
+function txHTML(tx){
+  const wid=tx.wallet||tx.from;
+  const w=WS.find(x=>x.id===wid),wTo=WS.find(x=>x.id===tx.to);
+  const cls=tx.type==='in'?'in':tx.type==='out'?'out':'move';
+  const sign=tx.type==='in'?'+':tx.type==='out'?'-':'';
+  const ob=cu==='me'?`<span class="badge ${tx.owner==='wife'?'bwife':'bme'}">${USERS[tx.owner]?.icon||''}</span>`:'';
+  const canE=cu==='me'||tx.owner===cu;
+  return`<div class="txi" ${canE?`onclick="openEM(${tx.id})"`:''}>
+    <div class="txi-ico ${cls}">${w?w.icon:'💰'}</div>
+    <div class="txi-body"><div class="txi-name">${tx.note||tx.category||'Операція'}${ob}</div><div class="txi-meta">${fmtD(tx.date)} · ${w?w.name:''}${tx.type==='move'&&wTo?' → '+wTo.name:''} · ${tx.category||''}</div></div>
+    <div class="txi-right"><div class="txi-amt ${cls}">${sign}${fmt(Number(tx.amount))}</div>${canE?'<span class="txi-arr">›</span>':''}</div>
+  </div>`;
+}
+
+function renderDashboard(){
+  const myWS=cu==='me'&&dashV==='all'?WS:cu==='me'?WS.filter(w=>w.owner===dashV):WS.filter(w=>w.owner===cu);
+  g('wgrid').innerHTML=myWS.map(w=>{
+    const bal=getBal(w.id);
+    const ob=cu==='me'&&dashV==='all'?`<div class="wcrd-owner">${USERS[w.owner].icon} ${USERS[w.owner].name}</div>`:'';
+    return`<div class="wcrd" onclick="openWM('${w.id}')">
+      <div class="wcrd-accent" style="background:${w.color}"></div>
+      <div class="wcrd-top"><span style="font-size:18px">${w.icon}</span><span class="wcrd-name">${w.name}</span></div>
+      <div class="wcrd-bal ${bal>=0?'pos':'neg'}">${fmt(bal)}</div>${ob}
+    </div>`;
+  }).join('');
+  const now=new Date();
+  const mTxs=txs.filter(tx=>{const d=new Date(tx.date);return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear()&&(cu==='me'?(dashV==='all'||tx.owner===dashV):tx.owner===cu)});
+  g('st-in').textContent=fmt(mTxs.filter(t=>t.type==='in').reduce((s,t)=>s+Number(t.amount),0));
+  g('st-out').textContent=fmt(mTxs.filter(t=>t.type==='out').reduce((s,t)=>s+Number(t.amount),0));
+  const maxB=Math.max(...myWS.map(w=>Math.abs(getBal(w.id))),1);
+  g('barchart').innerHTML=myWS.map(w=>{const v=getBal(w.id);const p=Math.round(Math.abs(v)/maxB*100);const c=v>=0?'#34c759':'#ff3b30';return`<div class="bar"><div class="bar-row"><span>${w.icon} ${w.name}</span><span style="font-weight:600;color:${c}">${fmt(v)}</span></div><div class="bar-track"><div class="bar-fill" style="width:${p}%;background:${c}"></div></div></div>`}).join('');
+  const rec=txs.filter(tx=>cu==='me'?(dashV==='all'||tx.owner===dashV):tx.owner===cu).slice(0,6);
+  g('recent').innerHTML=rec.length?rec.map(txHTML).join(''):'<div class="empty"><div class="eico">📭</div>Ще немає операцій</div>';
+}
+
+function renderHistory(){
+  g('mlbl').textContent=MONTHS[curM]+' '+curY;
+  const fil=txs.filter(tx=>{const d=new Date(tx.date);return d.getMonth()===curM&&d.getFullYear()===curY&&(cu==='me'?(histV==='all'||tx.owner===histV):tx.owner===cu)});
+  if(!fil.length){g('histlist').innerHTML='<div class="empty"><div class="eico">📅</div>Немає операцій</div>';return}
+  const grp={};fil.forEach(tx=>(grp[tx.date]=grp[tx.date]||[]).push(tx));
+  const dates=Object.keys(grp).sort((a,b)=>b.localeCompare(a));
+  g('histlist').innerHTML=dates.map(date=>{
+    const dt=grp[date].reduce((s,tx)=>tx.type==='in'?s+Number(tx.amount):tx.type==='out'?s-Number(tx.amount):s,0);
+    const c=dt>=0?'#34c759':'#ff3b30';
+    return`<div class="dgrp"><span>${fmtD(date)}</span><span style="color:${c};font-weight:700">${dt>=0?'+':''}${fmt(dt)}</span></div>`+grp[date].map(txHTML).join('');
+  }).join('');
+}
+function chM(d){curM+=d;if(curM<0){curM=11;curY--}if(curM>11){curM=0;curY++}renderHistory()}
+
+function setPer(p,btn){analyticsPer=p;selCats.clear();document.querySelectorAll('.pbtn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderAnalytics()}
+function filterByPer(list){const now=new Date();return list.filter(tx=>{const d=new Date(tx.date);if(analyticsPer==='month')return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();if(analyticsPer==='year')return d.getFullYear()===now.getFullYear();return true})}
+function renderAnalytics(){
+  const myWS=cu==='me'?WS:WS.filter(w=>w.owner===cu);
+  const total=myWS.reduce((s,w)=>s+getBal(w.id),0);
+  g('tot-bal').textContent=fmt(total);
+  g('tot-sub').textContent=`по ${myWS.length} гаманцях · ${total>=0?'профіцит':'дефіцит'}`;
+  const pTxs=filterByPer(txs.filter(tx=>cu==='me'||tx.owner===cu));
+  const outM={};pTxs.filter(t=>t.type==='out').forEach(tx=>{const c=tx.category||'Інше';outM[c]=(outM[c]||0)+Number(tx.amount)});
+  const outArr=Object.entries(outM).sort((a,b)=>b[1]-a[1]);
+  const totOut=outArr.reduce((s,[,v])=>s+v,0);
+  g('cat-chips').innerHTML=outArr.map(([c],i)=>{const on=selCats.size===0||selCats.has(c);return`<span class="chip${on?' on':''}" style="${on?`background:${COLORS[i%COLORS.length]}`:''}" onclick="togCat('${c.replace(/'/g,"\\'")}')">${c}</span>`}).join('');
+  const fil=selCats.size>0?outArr.filter(([c])=>selCats.has(c)):outArr;
+  const filTot=fil.reduce((s,[,v])=>s+v,0);
+  g('pie-val').textContent=fmt(filTot);
+  drawPie(fil,filTot);
+  g('cat-out-list').innerHTML=fil.length?fil.map(([c,a],i)=>{const p=filTot>0?Math.round(a/filTot*100):0;return`<div class="crow"><div class="cdot" style="background:${COLORS[i%COLORS.length]}"></div><div class="cinfo"><div class="cname">${c}</div><div class="cpct">${p}%</div></div><div class="camt" style="color:#ff3b30">${fmt(a)}</div></div>`}).join(''):'<div class="empty">Немає витрат</div>';
+  const inM={};pTxs.filter(t=>t.type==='in').forEach(tx=>{const c=tx.category||'Інше';inM[c]=(inM[c]||0)+Number(tx.amount)});
+  const inArr=Object.entries(inM).sort((a,b)=>b[1]-a[1]);const totIn=inArr.reduce((s,[,v])=>s+v,0);
+  g('cat-in-list').innerHTML=inArr.length?inArr.map(([c,a],i)=>{const p=totIn>0?Math.round(a/totIn*100):0;return`<div class="crow"><div class="cdot" style="background:${COLORS[i%COLORS.length]}"></div><div class="cinfo"><div class="cname">${c}</div><div class="cpct">${p}%</div></div><div class="camt" style="color:#34c759">${fmt(a)}</div></div>`}).join(''):'<div class="empty">Немає доходів</div>';
+}
+function togCat(c){if(selCats.has(c))selCats.delete(c);else selCats.add(c);renderAnalytics()}
+function drawPie(data,total){
+  const cv=g('pie');if(!cv)return;const ctx=cv.getContext('2d');ctx.clearRect(0,0,160,160);
+  if(!data.length||!total){ctx.beginPath();ctx.arc(80,80,70,0,Math.PI*2);ctx.fillStyle='#f2f2f7';ctx.fill();return}
+  let a=-Math.PI/2;
+  data.forEach(([,v],i)=>{const s=v/total*Math.PI*2;ctx.beginPath();ctx.moveTo(80,80);ctx.arc(80,80,70,a,a+s);ctx.closePath();ctx.fillStyle=COLORS[i%COLORS.length];ctx.fill();a+=s});
+  ctx.beginPath();ctx.arc(80,80,42,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill();
+}
+
+function renderDebtors(){
+  const act=debts.filter(d=>!d.paid);
+  const tot=act.reduce((s,d)=>s+Number(d.amount),0);
+  g('debt-total-wrap').innerHTML=act.length?`<div class="debt-total"><span style="font-size:13px;color:#c62828">Загальна дебіторка</span><span style="font-size:18px;font-weight:700;color:#ff3b30">${fmt(tot)}</span></div>`:'';
+  g('debtlist').innerHTML=act.length?act.map(d=>`<div class="dbi"><div style="display:flex;align-items:center;justify-content:space-between"><div><div style="font-size:14px;font-weight:600">${d.name}</div><div style="font-size:12px;color:#6e6e73;margin-top:2px">${fmtD(d.date)}${d.note?' · '+d.note:''}</div></div><div style="font-size:16px;font-weight:700;color:#ff3b30">${fmt(Number(d.amount))}</div></div><button class="paid-btn" onclick="markPaid(${d.id})">✓ Погашено</button></div>`).join(''):'<div class="empty"><div class="eico">✅</div>Боргів немає</div>';
+}
+
+function openWM(wid){
+  curWalletId=wid;const w=WS.find(x=>x.id===wid);if(!w)return;
+  const bal=getBal(wid);
+  g('wmod-header').style.background=`linear-gradient(135deg,${w.color},${w.color}bb)`;
+  g('wmod-header').innerHTML=`<div style="font-size:28px;margin-bottom:6px">${w.icon}</div><div style="font-size:13px;opacity:.8;font-weight:500">${w.name}</div><div style="font-size:38px;font-weight:700;margin:4px 0">${fmt(bal)}</div><div style="font-size:12px;opacity:.75">${USERS[w.owner].icon} ${USERS[w.owner].name}</div>`;
+  const now=new Date();
+  const mT=txs.filter(tx=>{const d=new Date(tx.date);return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear()&&(tx.wallet===wid||tx.from===wid||tx.to===wid)});
+  g('wm-in').textContent=fmt(mT.filter(t=>t.type==='in'&&t.wallet===wid).reduce((s,t)=>s+Number(t.amount),0));
+  g('wm-out').textContent=fmt(mT.filter(t=>t.type==='out'&&t.wallet===wid).reduce((s,t)=>s+Number(t.amount),0));
+  const wTxs=txs.filter(tx=>tx.wallet===wid||tx.from===wid||tx.to===wid).slice(0,30);
+  g('wmod-list').innerHTML=wTxs.length?wTxs.map(tx=>{
+    const isIn=tx.type==='in'||(tx.type==='move'&&tx.to===wid);
+    const cls=isIn?'in':tx.type==='out'?'out':'move';
+    const sign=isIn?'+':'-';
+    const wF=WS.find(x=>x.id===tx.from),wT=WS.find(x=>x.id===tx.to);
+    return`<div class="txi" onclick="closeWM();openEM(${tx.id})">
+      <div class="txi-ico ${cls}">${tx.type==='move'?'⇄':isIn?'↓':'↑'}</div>
+      <div class="txi-body"><div class="txi-name">${tx.note||tx.category||'Операція'}</div><div class="txi-meta">${fmtD(tx.date)}${tx.type==='move'?' · '+(wF?wF.name:'')+'→'+(wT?wT.name:''):' · '+(tx.category||'')}</div></div>
+      <div class="txi-right"><div class="txi-amt ${cls}">${sign}${fmt(Number(tx.amount))}</div></div>
+    </div>`;
+  }).join(''):'<div class="empty"><div class="eico">📭</div>Немає операцій</div>';
+  g('wmod').style.display='flex';
+}
+function closeWM(){g('wmod').style.display='none'}
+function addForWallet(){closeWM();const w=WS.find(x=>x.id===curWalletId);if(w)setOwn(w.owner);goSec('add',1);setTimeout(()=>{g('a-wallet').value=curWalletId},100)}
+
+function openEM(id){
+  const tx=txs.find(t=>t.id===id);if(!tx)return;
+  g('e-id').value=id;g('e-amt').value=tx.amount;g('e-date').value=tx.date;g('e-note').value=tx.note||'';
+  const allO=WS.map(w=>`<option value="${w.id}">${w.icon} ${w.name} (${USERS[w.owner].name})</option>`).join('');
+  g('e-wallet').innerHTML=allO;g('e-wallet2').innerHTML=allO;
+  setET(tx.type);
+  if(tx.type==='move'){g('e-wallet').value=tx.from;g('e-wallet2').value=tx.to}else g('e-wallet').value=tx.wallet;
+  const cats=allCats(tx.type);
+  g('e-cat').innerHTML=cats.map(c=>`<option${c===tx.category?' selected':''}>${c}</option>`).join('');
+  if(tx.category&&!cats.includes(tx.category))g('e-cat').innerHTML+=`<option selected>${tx.category}</option>`;
+  g('emod').style.display='flex';
+}
+function setET(t){
+  editType=t;
+  document.querySelectorAll('#emod .tbtn').forEach((b,i)=>b.classList.toggle('active',['in','out','move'][i]===t));
+  g('e-wlt-lbl').textContent=t==='move'?'Звідки':'Гаманець';
+  g('e-to-row').classList.toggle('hidden',t!=='move');
+  g('e-cat').innerHTML=allCats(t).map(c=>`<option>${c}</option>`).join('');
+}
+function closeEM(){g('emod').style.display='none'}
+async function saveET(){
+  const id=parseInt(g('e-id').value),amt=parseFloat(g('e-amt').value);
+  if(!amt||amt<=0){alert('Введіть суму');return}
+  const ok=await updTxDB(id,{type:editType,amount:amt,wallet:editType!=='move'?g('e-wallet').value:null,from:editType==='move'?g('e-wallet').value:null,to:editType==='move'?g('e-wallet2').value:null,category:g('e-cat').value,note:g('e-note').value,date:g('e-date').value});
+  if(!ok){alert('Помилка');return}
+  closeEM();await loadData();renderAll();
+}
+async function delTx(){
+  if(!confirm('Видалити?'))return;
+  const id=parseInt(g('e-id').value);
+  const ok=await rmTxDB(id);
+  if(!ok){alert('Помилка');return}
+  closeEM();await loadData();renderAll();
+}
+
+function setMTab(tab,idx){
+  g('mono-cards').style.display=tab==='cards'?'block':'none';
+  g('mono-import').style.display=tab==='import'?'block':'none';
+  setSA('mono-seg',idx);
+  if(tab==='import')loadMI();
+}
+async function connectMono(){
+  const tok=g('mono-tok').value.trim();if(!tok){alert('Введіть токен');return}
+  const el=g('mono-res');el.innerHTML='<div class="card"><div class="spinner"></div></div>';
+  try{
+    const r=await fetch('https://api.monobank.ua/personal/client-info',{headers:{'X-Token':tok}});
+    if(!r.ok)throw new Error('Невірний токен');
+    const d=await r.json();
+    await db.from('mono_tokens').upsert({owner:monoU,token:tok,updated_at:new Date().toISOString()},{onConflict:'owner'});
+    monoTokens[monoU]=tok;
+    el.innerHTML=`<div class="card"><div class="card-ttl">${USERS[monoU].icon} ${d.name||''}</div>${d.accounts.map(a=>{const b=a.balance/100;return`<div class="mono-acc"><div><div style="font-size:14px;font-weight:500">${a.maskedPan?.[0]||a.type}</div><div style="font-size:12px;color:#6e6e73">${a.currencyCode===980?'UAH':a.currencyCode}</div></div><div style="font-size:15px;font-weight:700;color:${b>=0?'#34c759':'#ff3b30'}">${fmt(b)}</div></div>`}).join('')}</div>`;
+  }catch(e){el.innerHTML=`<div class="card" style="color:#ff3b30;font-size:14px">${e.message}</div>`}
+}
+async function loadMI(){
+  const el=g('mi-list');el.innerHTML='<div class="empty"><div class="spinner"></div></div>';
+  const{data}=await db.from('mono_transactions').select('*').eq('imported',false).order('created_at',{ascending:false}).limit(50);
+  if(!data||!data.length){el.innerHTML='<div class="empty"><div class="eico">📥</div>Немає нових транзакцій</div>';return}
+  miData=data;renderMI();
+}
+function renderMI(){
+  const allO=WS.map(w=>`<option value="${w.id}">${w.icon} ${w.name} (${USERS[w.owner].name})</option>`).join('');
+  g('mi-list').innerHTML=miData.map(tx=>{const c=tx.type==='in'?'#34c759':'#ff3b30';return`<div class="card" style="margin-bottom:10px" id="mi-${tx.id}"><div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px"><div><div style="font-size:14px;font-weight:600">${tx.description||'Транзакція'}</div><div style="font-size:11px;color:#6e6e73">${tx.date}</div></div><div style="font-size:16px;font-weight:700;color:${c};margin-left:10px">${tx.type==='in'?'+':'-'}${fmt(Number(tx.amount))}</div></div><div style="display:flex;gap:8px;align-items:center"><select class="finp" id="miw-${tx.id}" style="flex:1;font-size:13px"><option value="">— Пропустити —</option>${allO}</select><button onclick="importMI(${tx.id})" style="padding:9px 14px;background:#007aff;color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer">Імпорт</button><button onclick="skipMI(${tx.id})" style="padding:9px 10px;background:#f2f2f7;border:none;border-radius:10px;font-size:13px;cursor:pointer">✕</button></div></div>`}).join('');
+}
+async function importMI(id){
+  const wid=g('miw-'+id)?.value;const tx=miData.find(t=>t.id===id);if(!tx)return;
+  if(wid){const owner=WS.find(w=>w.id===wid)?.owner||cu;await saveTxDB({type:tx.type,amount:Number(tx.amount),wallet:wid,category:'Імпорт Моно',note:tx.description||'',date:tx.date,owner})}
+  await db.from('mono_transactions').update({imported:true,wallet:wid||null}).eq('id',id);
+  miData=miData.filter(t=>t.id!==id);g('mi-'+id)?.remove();
+  if(!miData.length)g('mi-list').innerHTML='<div class="empty"><div class="eico">✅</div>Готово</div>';
+  await loadData();renderAll();
+}
+async function skipMI(id){
+  await db.from('mono_transactions').update({imported:true}).eq('id',id);
+  miData=miData.filter(t=>t.id!==id);g('mi-'+id)?.remove();
+  if(!miData.length)g('mi-list').innerHTML='<div class="empty"><div class="eico">✅</div>Готово</div>';
+}
+
+function changePin(uid){const p=prompt(`Новий PIN для ${USERS[uid].name} (4 цифри):`);if(!p||!/^\d{4}$/.test(p)){alert('PIN має бути 4 цифри');return}pins[uid]=p;localStorage.setItem('fpins',JSON.stringify(pins));alert('PIN змінено!')}
+
+function renderAll(){renderDashboard();renderHistory();if(g('s-analytics').classList.contains('active'))renderAnalytics()}
+
+g('loverlay').style.display='none';
+showAuth();
+</script>
+</body>
+</html>
