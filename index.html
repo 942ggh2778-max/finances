@@ -178,6 +178,35 @@ select.form-input{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://
 .settings-label{font-size:14px;font-weight:500}
 .settings-val{font-size:14px;color:#6e6e73}
 .small-btn{font-size:13px;color:#007aff;background:none;border:none;cursor:pointer;font-weight:500}
+
+/* MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;display:flex;align-items:flex-end;justify-content:center}
+.modal-box{background:#f2f2f7;border-radius:24px 24px 0 0;width:100%;max-width:430px;max-height:90vh;overflow-y:auto;padding:16px 16px 32px}
+.modal-handle{width:36px;height:4px;background:#c7c7cc;border-radius:99px;margin:0 auto 16px}
+.modal-title{font-size:17px;font-weight:600;text-align:center;margin-bottom:16px}
+.modal-actions{display:flex;gap:8px;margin-top:12px}
+.modal-actions .submit-btn{margin-top:0}
+
+/* ANALYTICS */
+.analytics-total{background:linear-gradient(135deg,#007aff,#5ac8fa);border-radius:20px;padding:20px;margin-bottom:14px;color:#fff;text-align:center}
+.analytics-total-label{font-size:13px;opacity:.8;margin-bottom:4px}
+.analytics-total-val{font-size:36px;font-weight:700}
+.analytics-total-sub{font-size:12px;opacity:.7;margin-top:4px}
+.cat-filter-wrap{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}
+.cat-chip{padding:5px 12px;border-radius:99px;font-size:12px;font-weight:500;border:1px solid #e5e5ea;background:#fff;cursor:pointer;transition:all .15s}
+.cat-chip.active{background:#007aff;color:#fff;border-color:#007aff}
+.cat-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:0.5px solid #f2f2f7}
+.cat-row:last-child{border-bottom:none}
+.cat-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.cat-info{flex:1}
+.cat-name{font-size:14px;font-weight:500}
+.cat-pct{font-size:11px;color:#6e6e73}
+.cat-amt{font-size:14px;font-weight:700}
+.pie-wrap{position:relative;margin:0 auto 16px;width:160px;height:160px}
+.pie-wrap canvas{border-radius:50%}
+.pie-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none}
+.pie-center-val{font-size:18px;font-weight:700}
+.pie-center-lbl{font-size:11px;color:#6e6e73}
 </style>
 </head>
 <body>
@@ -635,6 +664,7 @@ function showSection(name, idx) {
   if(name==='history') renderHistory();
   if(name==='debtors') renderDebtors();
   if(name==='settings') renderSettings();
+  if(name==='analytics') renderAnalytics();
 }
 
 function setSegActive(container, idx) {
@@ -760,13 +790,17 @@ function txHTML(tx) {
   const ownerBadge = currentUser==='me' ? `<span class="badge ${tx.owner==='wife'?'badge-wife':'badge-me'}">${USERS[tx.owner]?.icon||''}</span>` : '';
   const walletInfo = w?w.name:'';
   const toInfo = tx.type==='move'&&wTo?' → '+wTo.name:'';
-  return `<div class="tx-item">
+  const canEdit = currentUser==='me' || tx.owner===currentUser;
+  return `<div class="tx-item" ${canEdit?`onclick="openEditModal(${tx.id})" style="cursor:pointer"`:''}">
     <div class="tx-ico ${cls}">${w?w.icon:'💰'}</div>
     <div class="tx-info">
       <div class="tx-name">${tx.note||tx.category||'Операція'}${ownerBadge}</div>
       <div class="tx-meta">${fmtDate(tx.date)} · ${walletInfo}${toInfo}${tx.category&&tx.note?' · '+tx.category:''}</div>
     </div>
-    <div class="tx-amt ${cls}">${sign}${fmt(Number(tx.amount))}</div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <div class="tx-amt ${cls}">${sign}${fmt(Number(tx.amount))}</div>
+      ${canEdit?`<span style="font-size:14px;color:#c7c7cc">›</span>`:''}
+    </div>
   </div>`;
 }
 
@@ -1068,6 +1102,207 @@ async function importAllMono() {
   for(const { tx, wallet } of items) {
     await importMonoTx(tx.id, tx.type);
   }
+}
+
+// ─── EDIT TX ─────────────────────────────────────────────
+let editType = 'in';
+
+function openEditModal(id) {
+  const tx = transactions.find(t=>t.id===id);
+  if(!tx) return;
+  document.getElementById('edit-id').value = id;
+  document.getElementById('edit-amount').value = tx.amount;
+  document.getElementById('edit-date').value = tx.date;
+  document.getElementById('edit-note').value = tx.note || '';
+
+  // populate selects
+  const allOpts = ALL_WALLETS.map(w=>`<option value="${w.id}">${w.icon} ${w.name} (${USERS[w.owner].name})</option>`).join('');
+  document.getElementById('edit-wallet').innerHTML = allOpts;
+  document.getElementById('edit-wallet-to').innerHTML = allOpts;
+
+  setEditType(tx.type);
+  if(tx.type==='move') {
+    document.getElementById('edit-wallet').value = tx.from;
+    document.getElementById('edit-wallet-to').value = tx.to;
+  } else {
+    document.getElementById('edit-wallet').value = tx.wallet;
+  }
+
+  // set category
+  const catSel = document.getElementById('edit-category');
+  const cats = (window.CATS||CATS)[tx.type]||[];
+  catSel.innerHTML = cats.map(c=>`<option${c===tx.category?' selected':''}>${c}</option>`).join('');
+  if(tx.category && !cats.includes(tx.category)) {
+    catSel.innerHTML += `<option selected>${tx.category}</option>`;
+  }
+
+  document.getElementById('edit-modal').style.display = 'flex';
+}
+
+function setEditType(t) {
+  editType = t;
+  document.querySelectorAll('#edit-modal .type-btn').forEach((b,i)=>b.classList.toggle('active',['in','out','move'][i]===t));
+  document.getElementById('edit-wallet-lbl').textContent = t==='move'?'Звідки':'Гаманець';
+  document.getElementById('edit-to-row').style.display = t==='move'?'block':'none';
+  const cats = (window.CATS||CATS)[t]||[];
+  document.getElementById('edit-category').innerHTML = cats.map(c=>`<option>${c}</option>`).join('');
+}
+
+function closeEditModal(e) {
+  if(e.target.id==='edit-modal') document.getElementById('edit-modal').style.display='none';
+}
+function closeModal() { document.getElementById('edit-modal').style.display='none'; }
+
+async function saveEditTx() {
+  const id = parseInt(document.getElementById('edit-id').value);
+  const amount = parseFloat(document.getElementById('edit-amount').value);
+  if(!amount||amount<=0){alert('Введіть суму');return;}
+  const updates = {
+    type: editType,
+    amount,
+    wallet: editType!=='move' ? document.getElementById('edit-wallet').value : null,
+    from:   editType==='move' ? document.getElementById('edit-wallet').value : null,
+    to:     editType==='move' ? document.getElementById('edit-wallet-to').value : null,
+    category: document.getElementById('edit-category').value,
+    note: document.getElementById('edit-note').value,
+    date: document.getElementById('edit-date').value,
+  };
+  setSyncStatus('loading');
+  const { error } = await db.from('transactions').update(updates).eq('id', id);
+  if(error){ setSyncStatus('error'); alert('Помилка збереження'); return; }
+  setSyncStatus('ok');
+  closeModal();
+  await loadData();
+  renderAll();
+}
+
+async function deleteTx() {
+  if(!confirm('Видалити цю операцію?')) return;
+  const id = parseInt(document.getElementById('edit-id').value);
+  setSyncStatus('loading');
+  const { error } = await db.from('transactions').delete().eq('id', id);
+  if(error){ setSyncStatus('error'); alert('Помилка видалення'); return; }
+  setSyncStatus('ok');
+  closeModal();
+  await loadData();
+  renderAll();
+}
+
+// ─── ANALYTICS ───────────────────────────────────────────
+let analyticsPeriod = 'month';
+let selectedCats = new Set();
+const CAT_COLORS = ['#007aff','#34c759','#ff9500','#ff2d55','#af52de','#5ac8fa','#ffcc00','#ff6b35','#30d158','#64d2ff','#bf5af2','#ffd60a'];
+
+function setAnalyticsPeriod(p) {
+  analyticsPeriod = p;
+  selectedCats.clear();
+  renderAnalytics();
+}
+
+function filterTxByPeriod(txList) {
+  const now = new Date();
+  return txList.filter(tx => {
+    const d = new Date(tx.date);
+    if(analyticsPeriod==='month') return d.getMonth()===now.getMonth() && d.getFullYear()===now.getFullYear();
+    if(analyticsPeriod==='year') return d.getFullYear()===now.getFullYear();
+    return true;
+  });
+}
+
+function renderAnalytics() {
+  // Total balance
+  const myWallets = currentUser==='me' ? ALL_WALLETS : ALL_WALLETS.filter(w=>w.owner===currentUser);
+  const total = myWallets.reduce((s,w)=>s+getBalance(w.id),0);
+  document.getElementById('total-balance').textContent = fmt(total);
+  document.getElementById('total-balance-sub').textContent =
+    `по ${myWallets.length} гаманцях · ${total>=0?'профіцит':'дефіцит'}`;
+
+  const ownerFilter = tx => currentUser==='me' || tx.owner===currentUser;
+  const periodTxs = filterTxByPeriod(transactions.filter(ownerFilter));
+
+  // OUT categories
+  const outTxs = periodTxs.filter(t=>t.type==='out');
+  const catMap = {};
+  outTxs.forEach(tx=>{
+    const c = tx.category||'Інше';
+    catMap[c] = (catMap[c]||0) + Number(tx.amount);
+  });
+  const sortedCats = Object.entries(catMap).sort((a,b)=>b[1]-a[1]);
+  const totalOut = sortedCats.reduce((s,[,v])=>s+v,0);
+
+  // Filter chips
+  const wrap = document.getElementById('cat-filter-wrap');
+  wrap.innerHTML = sortedCats.map(([cat],i)=>{
+    const active = selectedCats.size===0 || selectedCats.has(cat);
+    return `<span class="cat-chip${active?' active':''}" onclick="toggleCat('${cat}')" style="${active?'background:'+CAT_COLORS[i%CAT_COLORS.length]+';border-color:'+CAT_COLORS[i%CAT_COLORS.length]+';color:#fff':''}">${cat}</span>`;
+  }).join('');
+
+  // Filtered data for pie
+  const filteredCats = selectedCats.size>0
+    ? sortedCats.filter(([c])=>selectedCats.has(c))
+    : sortedCats;
+  const filteredTotal = filteredCats.reduce((s,[,v])=>s+v,0);
+
+  // Draw pie
+  drawPie(filteredCats, filteredTotal);
+  document.getElementById('pie-center-val').textContent = fmt(filteredTotal);
+
+  // Cat list
+  document.getElementById('cat-list').innerHTML = filteredCats.length ?
+    filteredCats.map(([cat,amt],i)=>{
+      const pct = filteredTotal>0 ? Math.round(amt/filteredTotal*100) : 0;
+      return `<div class="cat-row">
+        <div class="cat-dot" style="background:${CAT_COLORS[i%CAT_COLORS.length]}"></div>
+        <div class="cat-info"><div class="cat-name">${cat}</div><div class="cat-pct">${pct}% від витрат</div></div>
+        <div class="cat-amt" style="color:#ff3b30">${fmt(amt)}</div>
+      </div>`;
+    }).join('') :
+    '<div class="empty">Немає витрат за цей період</div>';
+
+  // IN categories
+  const inTxs = periodTxs.filter(t=>t.type==='in');
+  const incMap = {};
+  inTxs.forEach(tx=>{ const c=tx.category||'Інше'; incMap[c]=(incMap[c]||0)+Number(tx.amount); });
+  const sortedInc = Object.entries(incMap).sort((a,b)=>b[1]-a[1]);
+  const totalIn = sortedInc.reduce((s,[,v])=>s+v,0);
+  document.getElementById('inc-cat-list').innerHTML = sortedInc.length ?
+    sortedInc.map(([cat,amt],i)=>{
+      const pct = totalIn>0 ? Math.round(amt/totalIn*100) : 0;
+      return `<div class="cat-row">
+        <div class="cat-dot" style="background:${CAT_COLORS[i%CAT_COLORS.length]}"></div>
+        <div class="cat-info"><div class="cat-name">${cat}</div><div class="cat-pct">${pct}% від доходів</div></div>
+        <div class="cat-amt" style="color:#34c759">${fmt(amt)}</div>
+      </div>`;
+    }).join('') :
+    '<div class="empty">Немає доходів за цей період</div>';
+}
+
+function toggleCat(cat) {
+  if(selectedCats.has(cat)) selectedCats.delete(cat);
+  else selectedCats.add(cat);
+  renderAnalytics();
+}
+
+function drawPie(data, total) {
+  const canvas = document.getElementById('pie-canvas');
+  if(!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const cx=80,cy=80,r=70,inner=42;
+  ctx.clearRect(0,0,160,160);
+  if(!data.length||!total){ ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.fillStyle='#f2f2f7';ctx.fill();return; }
+  let angle = -Math.PI/2;
+  data.forEach(([,amt],i)=>{
+    const slice = (amt/total)*Math.PI*2;
+    ctx.beginPath();
+    ctx.moveTo(cx,cy);
+    ctx.arc(cx,cy,r,angle,angle+slice);
+    ctx.closePath();
+    ctx.fillStyle = CAT_COLORS[i%CAT_COLORS.length];
+    ctx.fill();
+    angle += slice;
+  });
+  // Donut hole
+  ctx.beginPath();ctx.arc(cx,cy,inner,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill();
 }
 
 // ─── INIT ────────────────────────────────────────────────
