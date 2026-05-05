@@ -9,7 +9,7 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f2f2f7;color:#1c1c1e;min-height:100vh}
-.app{max-width:430px;margin:0 auto;padding:12px;padding-bottom:84px}
+.app{max-width:430px;margin:0 auto;padding:12px;padding-bottom:96px}
 .hidden{display:none!important}
 .auth-screen{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px;background:#f2f2f7}
 .user-cards{display:grid;grid-template-columns:1fr 1fr;gap:12px;width:100%;max-width:300px}
@@ -32,10 +32,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .syncdot.error{background:#ff3b30}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
 .logout-btn{font-size:12px;color:#6e6e73;background:#f2f2f7;border:none;border-radius:8px;padding:5px 10px;cursor:pointer}
-.bnav{position:fixed;bottom:0;left:0;right:0;max-width:430px;margin:0 auto;background:#fff;border-top:.5px solid #e5e5ea;display:flex;padding:6px 0 env(safe-area-inset-bottom);z-index:100}
-.bnav-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:4px 2px;border:none;background:transparent;cursor:pointer;color:#8e8e93;font-size:10px;font-weight:500}
+.bnav{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);width:calc(100% - 32px);max-width:398px;background:rgba(255,255,255,0.92);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-radius:24px;display:flex;padding:8px 4px;z-index:100;box-shadow:0 4px 24px rgba(0,0,0,.12),0 1px 4px rgba(0,0,0,.08);border:.5px solid rgba(255,255,255,.8)}
+.bnav-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 2px;border:none;background:transparent;cursor:pointer;color:#8e8e93;font-size:10px;font-weight:500;border-radius:16px;transition:all .15s;position:relative}
 .bnav-btn.active{color:#007aff}
-.bnav-ico{font-size:22px;line-height:1.1}
+.bnav-btn.active .bnav-ico-wrap{background:rgba(0,122,255,.1);border-radius:12px;padding:2px 10px}
+.bnav-ico-wrap{padding:2px 10px;border-radius:12px;transition:all .15s}
+.bnav-ico{font-size:20px;line-height:1.2;display:block}
 .sec{display:none}
 .sec.active{display:block}
 .card{background:#fff;border-radius:16px;padding:16px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
@@ -373,12 +375,12 @@ select.finp{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3
   </div>
 
   <div class="bnav">
-    <button class="bnav-btn active" onclick="goSec('dashboard',0)"><span class="bnav-ico">📊</span>Огляд</button>
-    <button class="bnav-btn" onclick="goSec('add',1)"><span class="bnav-ico">➕</span>Додати</button>
-    <button class="bnav-btn" onclick="goSec('history',2)"><span class="bnav-ico">📋</span>Історія</button>
-    <button class="bnav-btn" onclick="goSec('analytics',3)"><span class="bnav-ico">📈</span>Аналіт.</button>
-    <button class="bnav-btn" onclick="goSec('debtors',4)"><span class="bnav-ico">💳</span>Борги</button>
-    <button class="bnav-btn" onclick="goSec('mono',5)"><span class="bnav-ico">🐱</span>Моно</button>
+    <button class="bnav-btn active" onclick="goSec('dashboard',0)"><div class="bnav-ico-wrap"><span class="bnav-ico">📊</span></div>Огляд</button>
+    <button class="bnav-btn" onclick="goSec('add',1)"><div class="bnav-ico-wrap"><span class="bnav-ico">➕</span></div>Додати</button>
+    <button class="bnav-btn" onclick="goSec('history',2)"><div class="bnav-ico-wrap"><span class="bnav-ico">📋</span></div>Історія</button>
+    <button class="bnav-btn" onclick="goSec('analytics',3)"><div class="bnav-ico-wrap"><span class="bnav-ico">📈</span></div>Аналіт.</button>
+    <button class="bnav-btn" onclick="goSec('debtors',4)"><div class="bnav-ico-wrap"><span class="bnav-ico">💳</span></div>Борги</button>
+    <button class="bnav-btn" onclick="goSec('mono',5)"><div class="bnav-ico-wrap"><span class="bnav-ico">🐱</span></div>Моно</button>
   </div>
 </div>
 
